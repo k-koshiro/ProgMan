@@ -62,15 +62,19 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
       <table className="w-full border-collapse bg-white">
         <thead>
           <tr className="bg-gray-100">
-            <th className="border border-gray-300 px-4 py-2 text-left">大項目</th>
-            <th className="border border-gray-300 px-4 py-2 text-left">項目</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-32">予定<br/>開始日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-20">日数</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-24">終了日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-32">実績<br/>開始日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-20">日数</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-24">終了日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-32">進捗</th>
+            <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-left">大項目</th>
+            <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-left">項目</th>
+            <th colSpan={3} className="border border-gray-300 px-4 py-2 text-center bg-blue-50">予定</th>
+            <th colSpan={3} className="border border-gray-300 px-4 py-2 text-center bg-green-50">実績</th>
+            <th rowSpan={2} className="border border-gray-300 px-4 py-2 text-center w-32">進捗</th>
+          </tr>
+          <tr className="bg-gray-100">
+            <th className="border border-gray-300 px-4 py-2 text-center w-32 bg-blue-50">開始日</th>
+            <th className="border border-gray-300 px-4 py-2 text-center w-20 bg-blue-50">日数</th>
+            <th className="border border-gray-300 px-4 py-2 text-center w-24 bg-blue-50">終了日</th>
+            <th className="border border-gray-300 px-4 py-2 text-center w-32 bg-green-50">開始日</th>
+            <th className="border border-gray-300 px-4 py-2 text-center w-20 bg-green-50">日数</th>
+            <th className="border border-gray-300 px-4 py-2 text-center w-24 bg-green-50">終了日</th>
           </tr>
         </thead>
         <tbody>
