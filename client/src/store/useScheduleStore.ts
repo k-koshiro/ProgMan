@@ -71,7 +71,6 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   
   selectProject: (project: Project) => {
     set({ currentProject: project });
-    get().fetchSchedules(project.id);
   },
   
   fetchSchedules: async (projectId: number) => {

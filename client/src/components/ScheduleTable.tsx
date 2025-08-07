@@ -68,7 +68,7 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                         onUpdateSchedule({ id: schedule.id, owner: value as string });
                       });
                     }}
-                    placeholder="担当者"
+                    placeholder="担当者名を入力"
                   />
                 </td>
                 <td className="border border-gray-300 px-4 py-2" colSpan={6}></td>

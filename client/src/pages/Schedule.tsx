@@ -43,7 +43,7 @@ function Schedule() {
   useEffect(() => {
     if (projects.length > 0 && projectId) {
       const project = projects.find(p => p.id === parseInt(projectId));
-      if (project && !currentProject) {
+      if (project && (!currentProject || currentProject.id !== project.id)) {
         selectProject(project);
       }
     }
