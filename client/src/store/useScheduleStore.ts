@@ -149,7 +149,9 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             // ローカルで編集中の値があれば保持
             ...(currentSchedule.start_date !== newSchedule.start_date && currentSchedule.start_date ? { start_date: currentSchedule.start_date } : {}),
             ...(currentSchedule.duration !== newSchedule.duration && currentSchedule.duration ? { duration: currentSchedule.duration } : {}),
-            ...(currentSchedule.owner !== newSchedule.owner && currentSchedule.owner ? { owner: currentSchedule.owner } : {})
+            ...(currentSchedule.owner !== newSchedule.owner && currentSchedule.owner ? { owner: currentSchedule.owner } : {}),
+            ...(currentSchedule.actual_start !== newSchedule.actual_start && currentSchedule.actual_start ? { actual_start: currentSchedule.actual_start } : {}),
+            ...(currentSchedule.actual_duration !== newSchedule.actual_duration && currentSchedule.actual_duration ? { actual_duration: currentSchedule.actual_duration } : {})
           };
         }
         return newSchedule;

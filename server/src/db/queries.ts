@@ -98,12 +98,13 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
         id // IDは変更しない
       };
       
-      const { owner, start_date, duration } = updatedSchedule;
+      const { owner, start_date, duration, actual_start, actual_duration } = updatedSchedule;
       
-      console.log('Updating schedule with merged data:', { id, owner, start_date, duration });
+      console.log('Updating schedule with merged data:', { id, owner, start_date, duration, actual_start, actual_duration });
       
       let end_date = null;
       let progress = 0;
+      let actual_end = null;
       
       if (start_date && duration) {
         const startDate = new Date(start_date);
@@ -115,12 +116,19 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
         progress = Math.min(100, Math.max(0, Math.round((daysElapsed / duration) * 100)));
       }
       
+      if (actual_start && actual_duration) {
+        const actualStartDate = new Date(actual_start);
+        const actualEndDate = addDays(actualStartDate, actual_duration - 1);
+        actual_end = format(actualEndDate, 'yyyy-MM-dd');
+      }
+      
       db.run(
         `UPDATE schedules 
-         SET owner = ?, start_date = ?, duration = ?, end_date = ?, progress = ?, 
+         SET owner = ?, start_date = ?, duration = ?, end_date = ?, progress = ?,
+             actual_start = ?, actual_duration = ?, actual_end = ?,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?`,
-        [owner, start_date, duration, end_date, progress, id],
+        [owner, start_date, duration, end_date, progress, actual_start, actual_duration, actual_end, id],
         function(err) {
           if (err) {
             console.error('Error updating schedule:', err);
