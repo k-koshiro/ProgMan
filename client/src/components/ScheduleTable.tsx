@@ -3,7 +3,7 @@ import { Schedule } from '../types';
 import EditableCell from './EditableCell';
 import DateCell from './DateCell';
 import ProgressBar from './ProgressBar';
-import { calculateEndDate, calculateProgress, formatDateForDisplay } from '../utils/dateCalculations';
+import { calculateEndDate, formatDateForDisplay } from '../utils/dateCalculations';
 
 interface ScheduleTableProps {
   schedules: Schedule[];
@@ -28,14 +28,6 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
     if (calculated) return formatDateForDisplay(calculated);
     // 計算できない場合は保存された値を使用
     return formatDateForDisplay(savedEndDate);
-  };
-  
-  const getDisplayProgress = (startDate: string | undefined, duration: number | undefined, savedProgress: number | undefined) => {
-    // まずクライアント側で計算
-    const calculated = calculateProgress(startDate, duration);
-    if (startDate && duration) return calculated;
-    // 計算できない場合は保存された値を使用
-    return savedProgress || 0;
   };
 
   const calculateCategoryProgress = (categorySchedules: Schedule[]) => {
@@ -121,8 +113,21 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <td className="border border-gray-300 px-4 py-2 text-center">
                     {getDisplayEndDate(schedule.actual_start, schedule.actual_duration, schedule.actual_end)}
                   </td>
-                  <td className="border border-gray-300 px-4 py-2">
-                    <ProgressBar progress={getDisplayProgress(schedule.start_date, schedule.duration, schedule.progress)} />
+                  <td className="border border-gray-300 px-2 py-1">
+                    <div className="flex items-center gap-1">
+                      <div className="w-12">
+                        <EditableCell
+                          value={schedule.progress}
+                          onChange={(value) => onUpdateSchedule({ id: schedule.id, progress: value as number })}
+                          type="number"
+                          placeholder="0"
+                        />
+                      </div>
+                      <span className="text-xs">%</span>
+                      <div className="flex-1">
+                        <ProgressBar progress={schedule.progress || 0} />
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))}

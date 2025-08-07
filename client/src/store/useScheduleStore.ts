@@ -151,7 +151,8 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
             ...(currentSchedule.duration !== newSchedule.duration && currentSchedule.duration ? { duration: currentSchedule.duration } : {}),
             ...(currentSchedule.owner !== newSchedule.owner && currentSchedule.owner ? { owner: currentSchedule.owner } : {}),
             ...(currentSchedule.actual_start !== newSchedule.actual_start && currentSchedule.actual_start ? { actual_start: currentSchedule.actual_start } : {}),
-            ...(currentSchedule.actual_duration !== newSchedule.actual_duration && currentSchedule.actual_duration ? { actual_duration: currentSchedule.actual_duration } : {})
+            ...(currentSchedule.actual_duration !== newSchedule.actual_duration && currentSchedule.actual_duration ? { actual_duration: currentSchedule.actual_duration } : {}),
+            ...(currentSchedule.progress !== newSchedule.progress && currentSchedule.progress !== undefined ? { progress: currentSchedule.progress } : {})
           };
         }
         return newSchedule;

@@ -54,11 +54,11 @@ export const getSchedulesByProject = (projectId: number): Promise<Schedule[]> =>
               const startDate = new Date(schedule.start_date);
               const endDate = addDays(startDate, schedule.duration);
               schedule.end_date = format(endDate, 'yyyy-MM-dd');
-              
-              const today = new Date();
-              const daysElapsed = differenceInDays(today, startDate);
-              const progress = Math.min(100, Math.max(0, (daysElapsed / schedule.duration) * 100));
-              schedule.progress = Math.round(progress);
+            }
+            if (schedule.actual_start && schedule.actual_duration) {
+              const actualStartDate = new Date(schedule.actual_start);
+              const actualEndDate = addDays(actualStartDate, schedule.actual_duration);
+              schedule.actual_end = format(actualEndDate, 'yyyy-MM-dd');
             }
             return schedule;
           });
@@ -98,22 +98,17 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
         id // IDは変更しない
       };
       
-      const { owner, start_date, duration, actual_start, actual_duration } = updatedSchedule;
+      const { owner, start_date, duration, actual_start, actual_duration, progress } = updatedSchedule;
       
-      console.log('Updating schedule with merged data:', { id, owner, start_date, duration, actual_start, actual_duration });
+      console.log('Updating schedule with merged data:', { id, owner, start_date, duration, actual_start, actual_duration, progress });
       
       let end_date = null;
-      let progress = 0;
       let actual_end = null;
       
       if (start_date && duration) {
         const startDate = new Date(start_date);
         const endDate = addDays(startDate, duration - 1); // 開始日を含むため-1
         end_date = format(endDate, 'yyyy-MM-dd');
-        
-        const today = new Date();
-        const daysElapsed = differenceInDays(today, startDate);
-        progress = Math.min(100, Math.max(0, Math.round((daysElapsed / duration) * 100)));
       }
       
       if (actual_start && actual_duration) {
