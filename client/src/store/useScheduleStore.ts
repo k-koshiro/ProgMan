@@ -13,6 +13,7 @@ interface ScheduleStore {
   
   fetchProjects: () => Promise<void>;
   createProject: (name: string) => Promise<void>;
+  updateProject: (projectId: number, name: string) => Promise<void>;
   deleteProject: (projectId: number) => Promise<void>;
   selectProject: (project: Project) => void;
   fetchSchedules: (projectId: number) => Promise<void>;
@@ -52,6 +53,22 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     } catch (error) {
       set({ error: 'Failed to create project', loading: false });
       console.error('Error creating project:', error);
+    }
+  },
+  
+  updateProject: async (projectId: number, name: string) => {
+    set({ loading: true, error: null });
+    try {
+      await axios.put(`/progress-manager/api/projects/${projectId}`, { name });
+      set(state => ({
+        projects: state.projects.map(p => 
+          p.id === projectId ? { ...p, name } : p
+        ),
+        loading: false
+      }));
+    } catch (error) {
+      set({ error: 'Failed to update project', loading: false });
+      console.error('Error updating project:', error);
     }
   },
   

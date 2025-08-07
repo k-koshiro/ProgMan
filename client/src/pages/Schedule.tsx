@@ -75,7 +75,7 @@ function Schedule() {
           onClick={() => navigate('/projects')}
           className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
         >
-          プロジェクト一覧に戻る
+          製番一覧に戻る
         </button>
       </div>
     );
@@ -94,7 +94,7 @@ function Schedule() {
           onClick={() => navigate('/projects')}
           className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
         >
-          プロジェクト一覧へ
+          製番一覧へ
         </button>
       </div>
 

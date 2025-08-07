@@ -21,6 +21,15 @@ export const createProject = (name: string): Promise<number> => {
   });
 };
 
+export const updateProjectName = (projectId: number, name: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.run('UPDATE projects SET name = ? WHERE id = ?', [name, projectId], function(err) {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+};
+
 export const deleteProject = (projectId: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {

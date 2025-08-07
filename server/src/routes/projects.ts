@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllProjects, createProject, deleteProject, initializeProjectSchedules } from '../db/queries.js';
+import { getAllProjects, createProject, deleteProject, updateProjectName, initializeProjectSchedules } from '../db/queries.js';
 
 const router = express.Router();
 
@@ -33,6 +33,22 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Error creating project:', error);
     res.status(500).json({ error: 'Failed to create project' });
+  }
+});
+
+router.put('/:id', async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Project name is required' });
+    }
+    
+    await updateProjectName(projectId, name);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: 'Failed to update project' });
   }
 });
 
