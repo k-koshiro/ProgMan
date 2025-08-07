@@ -1,0 +1,165 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useScheduleStore } from '../store/useScheduleStore';
+
+function ProjectList() {
+  const navigate = useNavigate();
+  const { projects, loading, error, fetchProjects, createProject, deleteProject } = useScheduleStore();
+  const [newProjectName, setNewProjectName] = useState('');
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; projectId: number | null; projectName: string }>({
+    show: false,
+    projectId: null,
+    projectName: ''
+  });
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const handleCreateProject = async () => {
+    if (newProjectName.trim()) {
+      await createProject(newProjectName);
+      setNewProjectName('');
+      setShowCreateForm(false);
+    }
+  };
+
+  const handleSelectProject = (projectId: number) => {
+    navigate(`/schedule/${projectId}`);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, projectId: number, projectName: string) => {
+    e.stopPropagation();
+    setDeleteConfirm({ show: true, projectId, projectName });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteConfirm.projectId) {
+      await deleteProject(deleteConfirm.projectId);
+      setDeleteConfirm({ show: false, projectId: null, projectName: '' });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirm({ show: false, projectId: null, projectName: '' });
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">プロジェクト一覧</h1>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            新規プロジェクト作成
+          </button>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
+
+        {showCreateForm && (
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6">
+            <h2 className="text-xl font-semibold mb-4">新規プロジェクト作成</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="プロジェクト名を入力"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateProject()}
+              />
+              <button
+                onClick={handleCreateProject}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
+              >
+                作成
+              </button>
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setNewProjectName('');
+                }}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p className="mt-2 text-gray-600">読み込み中...</p>
+          </div>
+        )}
+
+        {!loading && projects.length === 0 && (
+          <div className="bg-gray-100 rounded-lg p-8 text-center">
+            <p className="text-gray-600">プロジェクトがありません</p>
+            <p className="text-gray-500 text-sm mt-2">新規プロジェクトを作成してください</p>
+          </div>
+        )}
+
+        <div className="grid gap-4">
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              onClick={() => handleSelectProject(project.id)}
+              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer relative"
+            >
+              <button
+                onClick={(e) => handleDeleteClick(e, project.id, project.name)}
+                className="absolute top-4 right-4 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                title="プロジェクトを削除"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </button>
+              <h3 className="text-xl font-semibold text-gray-800 pr-12">{project.name}</h3>
+              <p className="text-gray-500 text-sm mt-2">
+                作成日: {new Date(project.created_at).toLocaleDateString('ja-JP')}
+              </p>
+            </div>
+          ))}
+        </div>
+        {deleteConfirm.show && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">プロジェクトを削除</h3>
+              <p className="text-gray-600 mb-6">
+                「{deleteConfirm.projectName}」を削除してもよろしいですか？<br />
+                <span className="text-red-600 text-sm">この操作は取り消せません。関連するすべてのスケジュールも削除されます。</span>
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-colors"
+                >
+                  削除する
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default ProjectList;
