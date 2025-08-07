@@ -10,16 +10,11 @@ function ProgressBar({ progress }: ProgressBarProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 bg-gray-200 rounded-full h-2">
-        <div
-          className={`h-2 rounded-full transition-all duration-300 ${getProgressColor()}`}
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <span className="text-sm font-medium text-gray-700 min-w-[40px]">
-        {progress}%
-      </span>
+    <div className="bg-gray-200 rounded-full h-2">
+      <div
+        className={`h-2 rounded-full transition-all duration-300 ${getProgressColor()}`}
+        style={{ width: `${progress}%` }}
+      />
     </div>
   );
 }

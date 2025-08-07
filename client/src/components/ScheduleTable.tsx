@@ -115,15 +115,25 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <div className="flex items-center gap-1">
-                      <div className="w-12">
-                        <EditableCell
-                          value={schedule.progress}
-                          onChange={(value) => onUpdateSchedule({ id: schedule.id, progress: value as number })}
-                          type="number"
-                          placeholder="0"
-                        />
+                      <div className="flex items-center">
+                        <div className="w-12">
+                          <EditableCell
+                            value={schedule.progress}
+                            onChange={(value) => {
+                              const num = value as number;
+                              const rounded = Math.round(num / 5) * 5;
+                              const clamped = Math.max(0, Math.min(100, rounded));
+                              onUpdateSchedule({ id: schedule.id, progress: clamped });
+                            }}
+                            type="number"
+                            placeholder="0"
+                            step={5}
+                            min={0}
+                            max={100}
+                          />
+                        </div>
+                        <span className="text-sm ml-0.5">%</span>
                       </div>
-                      <span className="text-xs">%</span>
                       <div className="flex-1">
                         <ProgressBar progress={schedule.progress || 0} />
                       </div>

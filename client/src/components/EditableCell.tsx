@@ -5,9 +5,12 @@ interface EditableCellProps {
   onChange: (value: string | number) => void;
   type?: 'text' | 'number';
   placeholder?: string;
+  step?: number;
+  min?: number;
+  max?: number;
 }
 
-function EditableCell({ value, onChange, type = 'text', placeholder = '' }: EditableCellProps) {
+function EditableCell({ value, onChange, type = 'text', placeholder = '', step, min, max }: EditableCellProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value || '');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,6 +57,9 @@ function EditableCell({ value, onChange, type = 'text', placeholder = '' }: Edit
         type={type}
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
+        step={step}
+        min={min}
+        max={max}
         onBlur={() => {
           // 値が変更された場合のみ保存
           const currentValue = type === 'number' ? parseInt(localValue as string) : localValue;
