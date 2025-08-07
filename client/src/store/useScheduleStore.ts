@@ -91,8 +91,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   
   updateSchedule: async (schedule: Partial<Schedule>) => {
     try {
+      // null値を適切に処理
+      const processedSchedule = Object.fromEntries(
+        Object.entries(schedule).map(([key, value]) => [
+          key,
+          value === undefined ? null : value
+        ])
+      );
+      
       // HTTPリクエストで更新
-      await axios.put(`/progress-manager/api/schedules/${schedule.id}`, schedule);
+      await axios.put(`/progress-manager/api/schedules/${schedule.id}`, processedSchedule);
       
       // ローカルの状態を即座に更新（楽観的更新）
       set(state => ({

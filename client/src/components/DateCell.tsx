@@ -10,7 +10,7 @@ registerLocale('ja', ja);
 
 interface DateCellProps {
   value: string | undefined;
-  onChange: (value: string) => void;
+  onChange: (value: string | undefined) => void;
   placeholder?: string;
 }
 
@@ -35,7 +35,7 @@ function DateCell({ value, onChange, placeholder = '日付を選択' }: DateCell
       onChange(formattedDate);
     } else {
       setInputValue('');
-      onChange('');
+      onChange(undefined);
     }
     setIsEditing(false);
   };
@@ -43,6 +43,13 @@ function DateCell({ value, onChange, placeholder = '日付を選択' }: DateCell
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
+    
+    // 空文字の場合は削除
+    if (value === '') {
+      setSelectedDate(null);
+      onChange(undefined);
+      return;
+    }
     
     // yyyy-MM-dd形式の検証
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -55,6 +62,12 @@ function DateCell({ value, onChange, placeholder = '日付を選択' }: DateCell
   };
 
   const handleInputBlur = () => {
+    // 空文字の場合は削除を確定
+    if (inputValue === '') {
+      onChange(undefined);
+      return;
+    }
+    
     // 入力値が有効な日付でない場合は元の値に戻す
     if (inputValue && !/^\d{4}-\d{2}-\d{2}$/.test(inputValue)) {
       setInputValue(value || '');

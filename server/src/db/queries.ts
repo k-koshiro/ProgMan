@@ -91,10 +91,15 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
         return;
       }
       
-      // 既存の値と新しい値をマージ
+      // 既存の値と新しい値をマージ（undefinedの場合はnullに変換）
       const updatedSchedule = {
         ...currentSchedule,
-        ...schedule,
+        ...Object.fromEntries(
+          Object.entries(schedule).map(([key, value]) => [
+            key,
+            value === undefined ? null : value
+          ])
+        ),
         id // IDは変更しない
       };
       

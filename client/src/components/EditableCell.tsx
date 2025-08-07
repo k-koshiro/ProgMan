@@ -24,12 +24,30 @@ function EditableCell({ value, onChange, type = 'text', placeholder = '', step, 
 
   const handleSave = () => {
     if (type === 'number') {
+      // 空文字の場合は削除（undefinedを送信）
+      if (localValue === '' || localValue === null) {
+        onChange(undefined as any);
+        setIsEditing(false);
+        return;
+      }
+      
       const numValue = parseInt(localValue as string);
-      if (!isNaN(numValue) && numValue > 0) {
-        onChange(numValue);
-      } else if (localValue === '') {
-        // 空文字の場合は何もしない（削除を意図している場合）
-        return setIsEditing(false);
+      if (!isNaN(numValue)) {
+        // マイナス値のチェック
+        if (numValue < 0) {
+          // マイナス値は許可しない
+          setLocalValue(value || '');
+          setIsEditing(false);
+          return;
+        }
+        // 最小値のチェック（minが設定されていて、かつ値が入力されている場合のみ適用）
+        if (min !== undefined && numValue < min && numValue !== 0) {
+          onChange(min);
+        } else {
+          // 最大値のチェック
+          const finalValue = max !== undefined ? Math.min(max, numValue) : numValue;
+          onChange(finalValue);
+        }
       }
     } else {
       onChange(localValue);
@@ -61,11 +79,17 @@ function EditableCell({ value, onChange, type = 'text', placeholder = '', step, 
         min={min}
         max={max}
         onBlur={() => {
-          // 値が変更された場合のみ保存
-          const currentValue = type === 'number' ? parseInt(localValue as string) : localValue;
-          const originalValue = value || (type === 'number' ? 0 : '');
+          // 空文字の場合は削除を意図している
+          if (localValue === '' && value !== undefined) {
+            handleSave();
+            return;
+          }
           
-          if (currentValue !== originalValue && localValue !== '') {
+          // 値が変更された場合のみ保存
+          const currentValue = type === 'number' && localValue !== '' ? parseInt(localValue as string) : localValue;
+          const originalValue = value || '';
+          
+          if (currentValue !== originalValue) {
             handleSave();
           } else {
             setIsEditing(false);

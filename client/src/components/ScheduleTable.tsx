@@ -106,15 +106,16 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <td className="border border-gray-300 px-2 py-1">
                     <DateCell
                       value={schedule.start_date}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, start_date: value })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, start_date: value === undefined ? null : value })}
                     />
                   </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <EditableCell
                       value={schedule.duration}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, duration: value as number })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, duration: value === undefined ? null : value as number })}
                       type="number"
                       placeholder="日数"
+                      min={1}
                     />
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-center">
@@ -123,15 +124,16 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <td className="border border-gray-300 px-2 py-1">
                     <DateCell
                       value={schedule.actual_start}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_start: value })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_start: value === undefined ? null : value })}
                     />
                   </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <EditableCell
                       value={schedule.actual_duration}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_duration: value as number })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_duration: value === undefined ? null : value as number })}
                       type="number"
                       placeholder=""
+                      min={1}
                     />
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-center">
@@ -144,10 +146,14 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                           <EditableCell
                             value={schedule.progress}
                             onChange={(value) => {
-                              const num = value as number;
-                              const rounded = Math.round(num / 5) * 5;
-                              const clamped = Math.max(0, Math.min(100, rounded));
-                              onUpdateSchedule({ id: schedule.id, progress: clamped });
+                              if (value === undefined) {
+                                onUpdateSchedule({ id: schedule.id, progress: null });
+                              } else {
+                                const num = value as number;
+                                const rounded = Math.round(num / 5) * 5;
+                                const clamped = Math.max(0, Math.min(100, rounded));
+                                onUpdateSchedule({ id: schedule.id, progress: clamped });
+                              }
                             }}
                             type="number"
                             placeholder="0"
