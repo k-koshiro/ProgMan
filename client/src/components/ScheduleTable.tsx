@@ -55,11 +55,9 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
             <th className="border border-gray-300 px-4 py-2 text-center w-32">予定<br/>開始日</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-20">日数</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-24">終了日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-20">終了</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-32">実績<br/>開始日</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-20">日数</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-24">終了日</th>
-            <th className="border border-gray-300 px-4 py-2 text-center w-20">終了</th>
             <th className="border border-gray-300 px-4 py-2 text-center w-32">進捗</th>
           </tr>
         </thead>
@@ -81,7 +79,7 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                     placeholder="担当者"
                   />
                 </td>
-                <td className="border border-gray-300 px-4 py-2" colSpan={8}></td>
+                <td className="border border-gray-300 px-4 py-2" colSpan={6}></td>
                 <td className="border border-gray-300 px-4 py-2">
                   <ProgressBar progress={calculateCategoryProgress(categorySchedules)} />
                 </td>
@@ -106,9 +104,6 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <td className="border border-gray-300 px-4 py-2 text-center">
                     {getDisplayEndDate(schedule.start_date, schedule.duration, schedule.end_date)}
                   </td>
-                  <td className="border border-gray-300 px-4 py-2 text-center">
-                    {formatDateForDisplay(schedule.end_date)}
-                  </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <DateCell
                       value={schedule.actual_start}
@@ -125,9 +120,6 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   </td>
                   <td className="border border-gray-300 px-4 py-2 text-center">
                     {getDisplayEndDate(schedule.actual_start, schedule.actual_duration, schedule.actual_end)}
-                  </td>
-                  <td className="border border-gray-300 px-4 py-2 text-center">
-                    {formatDateForDisplay(schedule.actual_end)}
                   </td>
                   <td className="border border-gray-300 px-4 py-2">
                     <ProgressBar progress={getDisplayProgress(schedule.start_date, schedule.duration, schedule.progress)} />
