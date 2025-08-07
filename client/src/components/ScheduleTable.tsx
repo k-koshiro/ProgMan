@@ -22,6 +22,26 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
     return groups;
   }, [schedules]);
 
+  // パステルカラーのパレット（隣り合う色が異なる色味になるよう配置）
+  const pastelColors = [
+    'bg-pink-100',      // ピンク
+    'bg-sky-100',       // スカイブルー
+    'bg-amber-100',     // アンバー
+    'bg-purple-100',    // パープル
+    'bg-lime-100',      // ライム
+    'bg-rose-100',      // ローズ
+    'bg-cyan-100',      // シアン
+    'bg-orange-100',    // オレンジ
+    'bg-indigo-100',    // インディゴ
+    'bg-yellow-100',    // イエロー
+    'bg-teal-100',      // ティール
+    'bg-fuchsia-100',   // フクシア
+  ];
+
+  const getCategoryColor = (index: number) => {
+    return pastelColors[index % pastelColors.length];
+  };
+
   const getDisplayEndDate = (startDate: string | undefined, duration: number | undefined, savedEndDate: string | undefined) => {
     // まずクライアント側で計算
     const calculated = calculateEndDate(startDate, duration);
@@ -54,9 +74,9 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
           </tr>
         </thead>
         <tbody>
-          {Object.entries(groupedSchedules).map(([category, categorySchedules]) => (
+          {Object.entries(groupedSchedules).map(([category, categorySchedules], categoryIndex) => (
             <>
-              <tr key={`category-${category}`} className="bg-blue-50">
+              <tr key={`category-${category}`} className={getCategoryColor(categoryIndex)}>
                 <td className="border border-gray-300 px-4 py-2 font-semibold" rowSpan={categorySchedules.length + 1}>
                   {category}
                 </td>
