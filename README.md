@@ -27,22 +27,37 @@ Excel形式の進捗管理をWebツール化した、リアルタイム同期対
 
 ```bash
 # リポジトリのクローン
+git clone https://github.com/k-koshiro/ProgMan.git
 cd ProgMan
 
-# 依存関係のインストール
+# 依存関係のインストール（方法1: 一括インストール）
 npm run install:all
+
+# または個別にインストール（方法2）
+npm install  # ルートディレクトリ
+cd client && npm install
+cd ../server && npm install
 ```
 
 ### 開発サーバーの起動
 
 ```bash
-# フロントエンド・バックエンド同時起動
+# フロントエンド・バックエンド同時起動（方法1）
 ./start.sh
 # または
 npm run dev
+
+# 個別に起動（方法2）
+# ターミナル1: サーバー起動
+cd server
+npm run dev
+
+# ターミナル2: クライアント起動  
+cd client
+npm run dev
 ```
 
-- フロントエンド: http://localhost:5173
+- フロントエンド: http://localhost:5173/progress-manager/
 - バックエンド: http://localhost:5001
 
 ## 使用方法

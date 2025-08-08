@@ -44,5 +44,7 @@ tmp/
 temp/
 
 # Service account files
-*.json
+*-credentials.json
+*-serviceaccount.json
+*-service-account.json
 credentials/
