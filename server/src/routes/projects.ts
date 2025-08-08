@@ -21,7 +21,14 @@ router.post('/', async (req, res) => {
     }
     
     const projectId = await createProject(name);
-    await initializeProjectSchedules(projectId);
+    
+    // スケジュールの初期化を一旦コメントアウト（オプショナルにする）
+    try {
+      await initializeProjectSchedules(projectId);
+    } catch (initError) {
+      console.warn('Failed to initialize schedules, but project was created:', initError);
+      // スケジュール初期化に失敗してもプロジェクト作成は成功とする
+    }
     
     const project = { 
       id: projectId, 

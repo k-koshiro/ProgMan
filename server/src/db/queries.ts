@@ -155,19 +155,35 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
 export const initializeProjectSchedules = (projectId: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     let sortOrder = 0;
-    const stmt = db.prepare(
-      `INSERT INTO schedules (project_id, category, item, sort_order) VALUES (?, ?, ?, ?)`
-    );
+    const insertPromises: Promise<void>[] = [];
     
+    // 各カテゴリーとアイテムを個別にINSERTする
     initialCategories.forEach(categoryData => {
       categoryData.items.forEach(item => {
-        stmt.run(projectId, categoryData.category, item, sortOrder++);
+        const promise = new Promise<void>((res, rej) => {
+          db.run(
+            `INSERT INTO schedules (project_id, category, item, sort_order) VALUES (?, ?, ?, ?)`,
+            [projectId, categoryData.category, item, sortOrder++],
+            function(err) {
+              if (err) {
+                console.error('Error inserting schedule item:', err);
+                rej(err);
+              } else {
+                res();
+              }
+            }
+          );
+        });
+        insertPromises.push(promise);
       });
     });
     
-    stmt.finalize((err) => {
-      if (err) reject(err);
-      else resolve();
-    });
+    // すべてのINSERTが完了するまで待つ
+    Promise.all(insertPromises)
+      .then(() => resolve())
+      .catch(err => {
+        console.error('Error initializing schedules:', err);
+        reject(err);
+      });
   });
 };
