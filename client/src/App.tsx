@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ProjectList from './pages/ProjectList';
 import Schedule from './pages/Schedule';
+import VersionInfo from './components/VersionInfo';
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/schedule/:projectId" element={<Schedule />} />
         </Routes>
+        <VersionInfo />
       </div>
     </Router>
   );

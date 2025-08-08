@@ -10,6 +10,7 @@ import fs from 'fs';
 import { initDatabase } from './db/init.js';
 import projectRoutes from './routes/projects.js';
 import scheduleRoutes from './routes/schedules.js';
+import versionRoutes from './routes/version.js';
 import { setupScheduleSocket } from './sockets/schedule.js';
 
 const __filename = fileURLToPath(import.meta.url || '');
@@ -38,6 +39,7 @@ if (!fs.existsSync(dataDir)) {
 
 app.use('/api/projects', projectRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/version', versionRoutes);
 
 setupScheduleSocket(io);
 
