@@ -26,9 +26,16 @@ function Schedule() {
       return;
     }
 
+    // プロジェクトIDが数値でない場合はリダイレクト
+    const projectIdNum = parseInt(projectId);
+    if (isNaN(projectIdNum)) {
+      navigate('/projects');
+      return;
+    }
+
     const loadData = async () => {
       await fetchProjects();
-      await fetchSchedules(parseInt(projectId));
+      await fetchSchedules(projectIdNum);
       connectSocket();
     };
 
@@ -42,12 +49,24 @@ function Schedule() {
   // プロジェクト情報を取得して currentProject を設定
   useEffect(() => {
     if (projects.length > 0 && projectId) {
-      const project = projects.find(p => p.id === parseInt(projectId));
-      if (project && (!currentProject || currentProject.id !== project.id)) {
+      const projectIdNum = parseInt(projectId);
+      if (isNaN(projectIdNum)) {
+        navigate('/projects');
+        return;
+      }
+      
+      const project = projects.find(p => p.id === projectIdNum);
+      if (!project) {
+        // プロジェクトが見つからない場合はプロジェクト一覧へリダイレクト
+        navigate('/projects');
+        return;
+      }
+      
+      if (!currentProject || currentProject.id !== project.id) {
         selectProject(project);
       }
     }
-  }, [projects, projectId, currentProject, selectProject]);
+  }, [projects, projectId, currentProject, selectProject, navigate]);
 
   const handleUpdateSchedule = async (schedule: any) => {
     console.log('Updating schedule:', schedule);
@@ -104,8 +123,12 @@ function Schedule() {
           onUpdateSchedule={handleUpdateSchedule}
         />
       ) : (
-        <div className="bg-gray-100 rounded-lg p-8 text-center">
-          <p className="text-gray-600">スケジュールデータがありません</p>
+        <div className="bg-white rounded-lg p-12 text-center border-2 border-dashed border-gray-300">
+          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          <p className="text-gray-600 text-lg mb-2">まだスケジュールが登録されていません</p>
+          <p className="text-gray-500 text-sm">このプロジェクトのスケジュールは後から追加できます</p>
         </div>
       )}
     </div>
