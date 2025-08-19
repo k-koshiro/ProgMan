@@ -1,12 +1,20 @@
 import express from 'express';
-import { getSchedulesByProject, updateSchedule } from '../db/queries.js';
+import { getSchedulesByProject, updateSchedule, initializeProjectSchedules } from '../db/queries.js';
 
 const router = express.Router();
 
 router.get('/:projectId', async (req, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
-    const schedules = await getSchedulesByProject(projectId);
+    let schedules = await getSchedulesByProject(projectId);
+    
+    // スケジュールが0件の場合、自動的に初期データを追加
+    if (schedules.length === 0) {
+      console.log(`No schedules found for project ${projectId}, initializing...`);
+      await initializeProjectSchedules(projectId);
+      schedules = await getSchedulesByProject(projectId);
+    }
+    
     res.json(schedules);
   } catch (error) {
     console.error('Error fetching schedules:', error);

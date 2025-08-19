@@ -117,20 +117,10 @@ function Schedule() {
         </button>
       </div>
 
-      {schedules.length > 0 ? (
-        <ScheduleTable
-          schedules={schedules}
-          onUpdateSchedule={handleUpdateSchedule}
-        />
-      ) : (
-        <div className="bg-white rounded-lg p-12 text-center border-2 border-dashed border-gray-300">
-          <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <p className="text-gray-600 text-lg mb-2">まだスケジュールが登録されていません</p>
-          <p className="text-gray-500 text-sm">このプロジェクトのスケジュールは後から追加できます</p>
-        </div>
-      )}
+      <ScheduleTable
+        schedules={schedules}
+        onUpdateSchedule={handleUpdateSchedule}
+      />
     </div>
   );
 }
