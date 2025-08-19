@@ -50,6 +50,20 @@ export const deleteProject = (projectId: number): Promise<void> => {
   });
 };
 
+export const deleteProjectSchedules = (projectId: number): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM schedules WHERE project_id = ?', [projectId], function(err) {
+      if (err) {
+        console.error('Error deleting schedules:', err);
+        reject(err);
+      } else {
+        console.log(`Deleted ${this.changes} schedules for project ${projectId}`);
+        resolve();
+      }
+    });
+  });
+};
+
 export const getSchedulesByProject = (projectId: number): Promise<Schedule[]> => {
   return new Promise((resolve, reject) => {
     db.all(
@@ -100,54 +114,53 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
         return;
       }
       
-      // 既存の値と新しい値をマージ（undefinedの場合はnullに変換）
-      const updatedSchedule = {
-        ...currentSchedule,
-        ...Object.fromEntries(
-          Object.entries(schedule).map(([key, value]) => [
-            key,
-            value === undefined ? null : value
-          ])
-        ),
-        id // IDは変更しない
-      };
+      // 更新するフィールドを決定
+      const updatedSchedule = { ...currentSchedule, ...schedule };
       
-      const { owner, start_date, duration, actual_start, actual_duration, progress } = updatedSchedule;
+      // end_dateとactual_endは自動計算するので除外
+      const { end_date, actual_end, ...fieldsToUpdate } = updatedSchedule;
       
-      console.log('Updating schedule with merged data:', { id, owner, start_date, duration, actual_start, actual_duration, progress });
-      
-      let end_date = null;
-      let actual_end = null;
-      
-      if (start_date && duration) {
-        const startDate = new Date(start_date);
-        const endDate = addDays(startDate, duration - 1); // 開始日を含むため-1
-        end_date = format(endDate, 'yyyy-MM-dd');
+      // 日数が0の場合はnullとして扱う
+      if (fieldsToUpdate.duration === 0) {
+        fieldsToUpdate.duration = null;
+      }
+      if (fieldsToUpdate.actual_duration === 0) {
+        fieldsToUpdate.actual_duration = null;
       }
       
-      if (actual_start && actual_duration) {
-        const actualStartDate = new Date(actual_start);
-        const actualEndDate = addDays(actualStartDate, actual_duration - 1);
-        actual_end = format(actualEndDate, 'yyyy-MM-dd');
+      // 更新クエリの生成
+      const updateFields = Object.keys(fieldsToUpdate)
+        .filter(key => key !== 'id' && key !== 'project_id' && key !== 'category' && key !== 'item' && key !== 'sort_order')
+        .map(key => `${key} = ?`);
+      
+      if (updateFields.length === 0) {
+        resolve();
+        return;
       }
       
-      db.run(
-        `UPDATE schedules 
-         SET owner = ?, start_date = ?, duration = ?, end_date = ?, progress = ?,
-             actual_start = ?, actual_duration = ?, actual_end = ?,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [owner, start_date, duration, end_date, progress, actual_start, actual_duration, actual_end, id],
-        function(err) {
-          if (err) {
-            console.error('Error updating schedule:', err);
-            reject(err);
-          } else {
-            console.log('Schedule updated successfully, rows affected:', this.changes);
-            resolve();
-          }
+      // updated_atを追加
+      updateFields.push('updated_at = CURRENT_TIMESTAMP');
+      
+      const values = Object.keys(fieldsToUpdate)
+        .filter(key => key !== 'id' && key !== 'project_id' && key !== 'category' && key !== 'item' && key !== 'sort_order')
+        .map(key => fieldsToUpdate[key as keyof Schedule]);
+      
+      values.push(id);
+      
+      const query = `UPDATE schedules SET ${updateFields.join(', ')} WHERE id = ?`;
+      
+      console.log('Update query:', query);
+      console.log('Update values:', values);
+      
+      db.run(query, values, function(err) {
+        if (err) {
+          console.error('Error updating schedule:', err);
+          reject(err);
+        } else {
+          console.log(`Schedule ${id} updated successfully`);
+          resolve();
         }
-      );
+      });
     });
   });
 };
