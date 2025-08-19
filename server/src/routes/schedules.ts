@@ -11,8 +11,13 @@ router.get('/:projectId', async (req, res) => {
     // スケジュールが0件の場合、自動的に初期データを追加
     if (schedules.length === 0) {
       console.log(`No schedules found for project ${projectId}, initializing...`);
-      await initializeProjectSchedules(projectId);
-      schedules = await getSchedulesByProject(projectId);
+      try {
+        await initializeProjectSchedules(projectId);
+        schedules = await getSchedulesByProject(projectId);
+      } catch (initError) {
+        console.warn('Failed to initialize schedules, returning empty array:', initError);
+        // 初期化に失敗しても空配列を返す（エラーにしない）
+      }
     }
     
     res.json(schedules);
