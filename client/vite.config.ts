@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
-    allowedHosts: ['localhost', 'com3887', '.com3887'],
+    allowedHosts: ['localhost', 'com3887', '.com3887', 'ids5053', '.ids5053'],
     proxy: {
       '/progress-manager/api': {
         target: 'http://localhost:5001',
