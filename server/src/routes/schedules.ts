@@ -8,21 +8,16 @@ router.get('/:projectId', async (req, res) => {
     const projectId = parseInt(req.params.projectId);
     let schedules = await getSchedulesByProject(projectId);
     
-    // スケジュールが0件、またはすべてのデータがnullの場合、初期データを再作成
-    const hasValidData = schedules.some(s => s.start_date || s.duration || s.owner);
-    
-    if (schedules.length === 0 || !hasValidData) {
-      console.log(`No valid schedules found for project ${projectId}, reinitializing...`);
+    // スケジュールが0件の場合のみ、初期データを作成
+    if (schedules.length === 0) {
+      console.log(`No schedules found for project ${projectId}, initializing...`);
       try {
-        // 既存のデータを削除してから再作成
-        if (schedules.length > 0) {
-          await deleteProjectSchedules(projectId);
-        }
         await initializeProjectSchedules(projectId);
         schedules = await getSchedulesByProject(projectId);
       } catch (initError) {
-        console.warn('Failed to initialize schedules, returning existing data:', initError);
-        // 初期化に失敗しても既存データを返す
+        console.warn('Failed to initialize schedules:', initError);
+        // 初期化に失敗しても空配列を返す
+        schedules = [];
       }
     }
     
