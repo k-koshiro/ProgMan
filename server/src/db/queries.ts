@@ -83,6 +83,62 @@ export const deleteProjectSchedules = (projectId: number): Promise<void> => {
   });
 };
 
+export interface ExcelScheduleRow {
+  category?: string | null;
+  item: string;
+  owner?: string | null;
+  start_date?: string | null; // yyyy-MM-dd
+  duration?: number | null;   // days
+  progress?: number | null;   // 0-100
+}
+
+export const replaceSchedulesFromExcel = (projectId: number, rows: ExcelScheduleRow[]): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN');
+      db.run('DELETE FROM schedules WHERE project_id = ?', [projectId], (delErr) => {
+        if (delErr) {
+          db.run('ROLLBACK');
+          return reject(delErr);
+        }
+        let sortOrder = 0;
+        const stmt = db.prepare(`
+          INSERT INTO schedules (
+            project_id, category, item, owner, start_date, duration, end_date, progress, sort_order
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const r of rows) {
+          const category = (r.category && String(r.category).trim()) || '未分類';
+          const item = String(r.item || '').trim();
+          if (!item) continue;
+          const owner = r.owner ? String(r.owner).trim() : null;
+          const start = r.start_date || null;
+          const dur = r.duration != null && !Number.isNaN(r.duration) ? Math.max(0, Math.trunc(r.duration)) : null;
+          const progress = r.progress != null && !Number.isNaN(r.progress) ? Math.min(100, Math.max(0, Number(r.progress))) : 0;
+          stmt.run(
+            [projectId, category, item, owner, start, dur, null, progress, sortOrder++],
+            (insErr) => {
+              if (insErr) {
+                console.error('Insert error:', insErr, r);
+              }
+            }
+          );
+        }
+        stmt.finalize((finErr) => {
+          if (finErr) {
+            db.run('ROLLBACK');
+            return reject(finErr);
+          }
+          db.run('COMMIT', (cErr) => {
+            if (cErr) return reject(cErr);
+            resolve();
+          });
+        });
+      });
+    });
+  });
+};
+
 export const getSchedulesByProject = (projectId: number): Promise<Schedule[]> => {
   return new Promise((resolve, reject) => {
     db.all(

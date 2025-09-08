@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import ScheduleTable from '../components/ScheduleTable';
+import UploadExcel from '../components/UploadExcel';
 
 function Schedule() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -185,6 +186,9 @@ function Schedule() {
           製番一覧へ
         </button>
       </div>
+
+      {/* 製番内でのExcelアップロード */}
+      <UploadExcel projectId={currentProject?.id} />
 
       <ScheduleTable
         schedules={schedules}

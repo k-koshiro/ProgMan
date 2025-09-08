@@ -12,6 +12,7 @@ import { addBaseDateColumn } from './db/migrate.js';
 import projectRoutes from './routes/projects.js';
 import scheduleRoutes from './routes/schedules.js';
 import versionRoutes from './routes/version.js';
+import uploadRoutes from './routes/upload.js';
 import { setupScheduleSocket } from './sockets/schedule.js';
 
 const __filename = fileURLToPath(import.meta.url || '');
@@ -41,6 +42,7 @@ if (!fs.existsSync(dataDir)) {
 app.use('/api/projects', projectRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/version', versionRoutes);
+app.use('/api/upload', uploadRoutes);
 
 setupScheduleSocket(io);
 

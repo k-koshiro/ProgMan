@@ -48,3 +48,11 @@ temp/
 *-serviceaccount.json
 *-service-account.json
 credentials/
+ 
+# ProgMan runtime artifacts
+server/src/data/uploads/
+server/data/
+sample*.xlsm
+sample*.xlsx
+~$*.xlsx
+*:Zone.Identifier

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllProjects, createProject, deleteProject, updateProjectName, updateProjectBaseDate, initializeProjectSchedules } from '../db/queries.js';
+import { getAllProjects, createProject, deleteProject, updateProjectName, updateProjectBaseDate } from '../db/queries.js';
 
 const router = express.Router();
 
@@ -21,14 +21,6 @@ router.post('/', async (req, res) => {
     }
     
     const projectId = await createProject(name, base_date);
-    
-    // スケジュールの初期化を一旦コメントアウト（オプショナルにする）
-    try {
-      await initializeProjectSchedules(projectId);
-    } catch (initError) {
-      console.warn('Failed to initialize schedules, but project was created:', initError);
-      // スケジュール初期化に失敗してもプロジェクト作成は成功とする
-    }
     
     const project = { 
       id: projectId, 
