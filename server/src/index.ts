@@ -8,6 +8,7 @@ import { dirname } from 'path';
 import fs from 'fs';
 
 import { initDatabase } from './db/init.js';
+import { addBaseDateColumn } from './db/migrate.js';
 import projectRoutes from './routes/projects.js';
 import scheduleRoutes from './routes/schedules.js';
 import versionRoutes from './routes/version.js';
@@ -46,6 +47,7 @@ setupScheduleSocket(io);
 const startServer = async () => {
   try {
     await initDatabase();
+    await addBaseDateColumn();
     
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);

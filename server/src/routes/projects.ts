@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllProjects, createProject, deleteProject, updateProjectName, initializeProjectSchedules } from '../db/queries.js';
+import { getAllProjects, createProject, deleteProject, updateProjectName, updateProjectBaseDate, initializeProjectSchedules } from '../db/queries.js';
 
 const router = express.Router();
 
@@ -15,12 +15,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, base_date } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Project name is required' });
     }
     
-    const projectId = await createProject(name);
+    const projectId = await createProject(name, base_date);
     
     // スケジュールの初期化を一旦コメントアウト（オプショナルにする）
     try {
@@ -33,6 +33,7 @@ router.post('/', async (req, res) => {
     const project = { 
       id: projectId, 
       name,
+      base_date,
       created_at: new Date().toISOString()
     };
     
@@ -46,12 +47,16 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const projectId = parseInt(req.params.id);
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'Project name is required' });
+    const { name, base_date } = req.body;
+    
+    if (name !== undefined) {
+      await updateProjectName(projectId, name);
     }
     
-    await updateProjectName(projectId, name);
+    if (base_date !== undefined) {
+      await updateProjectBaseDate(projectId, base_date);
+    }
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating project:', error);

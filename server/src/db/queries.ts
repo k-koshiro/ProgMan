@@ -2,6 +2,7 @@ import { db } from './init.js';
 import { Project, Schedule } from '../types/index.js';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { initialCategories } from '../data/initialData.js';
+import { scheduleTemplates } from '../data/scheduleTemplate.js';
 
 export const getAllProjects = (): Promise<Project[]> => {
   return new Promise((resolve, reject) => {
@@ -12,9 +13,18 @@ export const getAllProjects = (): Promise<Project[]> => {
   });
 };
 
-export const createProject = (name: string): Promise<number> => {
+export const getProjectById = (projectId: number): Promise<Project | null> => {
   return new Promise((resolve, reject) => {
-    db.run('INSERT INTO projects (name) VALUES (?)', [name], function(err) {
+    db.get('SELECT * FROM projects WHERE id = ?', [projectId], (err, row) => {
+      if (err) reject(err);
+      else resolve(row as Project || null);
+    });
+  });
+};
+
+export const createProject = (name: string, baseDate?: string): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    db.run('INSERT INTO projects (name, base_date) VALUES (?, ?)', [name, baseDate || null], function(err) {
       if (err) reject(err);
       else resolve(this.lastID);
     });
@@ -24,6 +34,15 @@ export const createProject = (name: string): Promise<number> => {
 export const updateProjectName = (projectId: number, name: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     db.run('UPDATE projects SET name = ? WHERE id = ?', [name, projectId], function(err) {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+};
+
+export const updateProjectBaseDate = (projectId: number, baseDate: string | null): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.run('UPDATE projects SET base_date = ? WHERE id = ?', [baseDate, projectId], function(err) {
       if (err) reject(err);
       else resolve();
     });
@@ -165,38 +184,70 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
   });
 };
 
-export const initializeProjectSchedules = (projectId: number): Promise<void> => {
-  return new Promise((resolve, reject) => {
+export const initializeProjectSchedules = async (projectId: number): Promise<void> => {
+  try {
+    // Get project to check for base_date
+    const project = await getProjectById(projectId);
+    const baseDate = project?.base_date ? new Date(project.base_date) : new Date();
+    const currentYear = baseDate.getFullYear();
+    
     let sortOrder = 0;
     const insertPromises: Promise<void>[] = [];
     
-    // 各カテゴリーとアイテムを個別にINSERTする
-    initialCategories.forEach(categoryData => {
-      categoryData.items.forEach(item => {
-        const promise = new Promise<void>((res, rej) => {
-          db.run(
-            `INSERT INTO schedules (project_id, category, item, sort_order) VALUES (?, ?, ?, ?)`,
-            [projectId, categoryData.category, item, sortOrder++],
-            function(err) {
-              if (err) {
-                console.error('Error inserting schedule item:', err);
-                rej(err);
-              } else {
-                res();
-              }
+    // テンプレートデータを使用してスケジュールを作成
+    scheduleTemplates.forEach(template => {
+      const promise = new Promise<void>((resolve, reject) => {
+        let startDate = null;
+        let endDate = null;
+        
+        if (template.startDate) {
+          // Parse MM/DD format and apply to base year
+          const [month, day] = template.startDate.split('/').map(Number);
+          if (!isNaN(month) && !isNaN(day)) {
+            startDate = new Date(currentYear, month - 1, day);
+            
+            // If startDate is before baseDate, move to next year
+            if (startDate < baseDate) {
+              startDate = new Date(currentYear + 1, month - 1, day);
             }
-          );
-        });
-        insertPromises.push(promise);
+            
+            // Calculate end date
+            if (template.duration > 0) {
+              endDate = addDays(startDate, template.duration - 1);
+            }
+          }
+        }
+        
+        db.run(
+          `INSERT INTO schedules (
+            project_id, category, item, sort_order, 
+            start_date, duration, end_date
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [
+            projectId, 
+            template.category, 
+            template.item, 
+            sortOrder++,
+            startDate ? format(startDate, 'yyyy-MM-dd') : null,
+            template.duration || null,
+            endDate ? format(endDate, 'yyyy-MM-dd') : null
+          ],
+          function(err) {
+            if (err) {
+              console.error('Error inserting schedule item:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          }
+        );
       });
+      insertPromises.push(promise);
     });
     
-    // すべてのINSERTが完了するまで待つ
-    Promise.all(insertPromises)
-      .then(() => resolve())
-      .catch(err => {
-        console.error('Error initializing schedules:', err);
-        reject(err);
-      });
-  });
+    await Promise.all(insertPromises);
+  } catch (error) {
+    console.error('Error initializing project schedules:', error);
+    throw error;
+  }
 };

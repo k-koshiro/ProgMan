@@ -6,11 +6,13 @@ function ProjectList() {
   const navigate = useNavigate();
   const { projects, loading, error, fetchProjects, createProject, updateProject, deleteProject } = useScheduleStore();
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectBaseDate, setNewProjectBaseDate] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProject, setEditingProject] = useState<{
     id: number | null;
     name: string;
-  }>({ id: null, name: '' });
+    base_date: string;
+  }>({ id: null, name: '', base_date: '' });
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; projectId: number | null; projectName: string }>({
     show: false,
     projectId: null,
@@ -23,8 +25,9 @@ function ProjectList() {
 
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
-      await createProject(newProjectName);
+      await createProject(newProjectName, newProjectBaseDate || undefined);
       setNewProjectName('');
+      setNewProjectBaseDate('');
       setShowCreateForm(false);
     }
   };
@@ -49,20 +52,28 @@ function ProjectList() {
     setDeleteConfirm({ show: false, projectId: null, projectName: '' });
   };
 
-  const handleEditClick = (e: React.MouseEvent, projectId: number, projectName: string) => {
+  const handleEditClick = (e: React.MouseEvent, project: { id: number; name: string; base_date?: string }) => {
     e.stopPropagation();
-    setEditingProject({ id: projectId, name: projectName });
+    setEditingProject({ 
+      id: project.id, 
+      name: project.name, 
+      base_date: project.base_date || '' 
+    });
   };
 
   const handleUpdateProject = async () => {
     if (editingProject.id && editingProject.name.trim()) {
-      await updateProject(editingProject.id, editingProject.name);
-      setEditingProject({ id: null, name: '' });
+      await updateProject(
+        editingProject.id, 
+        editingProject.name, 
+        editingProject.base_date || undefined
+      );
+      setEditingProject({ id: null, name: '', base_date: '' });
     }
   };
 
   const handleEditCancel = () => {
-    setEditingProject({ id: null, name: '' });
+    setEditingProject({ id: null, name: '', base_date: '' });
   };
 
   return (
@@ -87,30 +98,49 @@ function ProjectList() {
         {showCreateForm && (
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-xl font-semibold mb-4">新規プロジェクト作成</h2>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="プロジェクト名を入力"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateProject()}
-              />
-              <button
-                onClick={handleCreateProject}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                作成
-              </button>
-              <button
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewProjectName('');
-                }}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                キャンセル
-              </button>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  プロジェクト名 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  placeholder="プロジェクト名を入力"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyPress={(e) => e.key === 'Enter' && handleCreateProject()}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  基準日（オプション）
+                </label>
+                <input
+                  type="date"
+                  value={newProjectBaseDate}
+                  onChange={(e) => setNewProjectBaseDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateProject}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  作成
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setNewProjectName('');
+                    setNewProjectBaseDate('');
+                  }}
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
+                >
+                  キャンセル
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -147,9 +177,9 @@ function ProjectList() {
                   </svg>
                 </button>
                 <button
-                  onClick={(e) => handleEditClick(e, project.id, project.name)}
+                  onClick={(e) => handleEditClick(e, project)}
                   className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors"
-                  title="製番名を変更"
+                  title="製番情報を編集"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
@@ -158,20 +188,32 @@ function ProjectList() {
               </div>
               {editingProject.id === project.id ? (
                 <div className="pr-20">
-                  <input
-                    type="text"
-                    value={editingProject.name}
-                    onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
-                    onClick={(e) => e.stopPropagation()}
-                    onKeyPress={(e) => {
-                      e.stopPropagation();
-                      if (e.key === 'Enter') handleUpdateProject();
-                      if (e.key === 'Escape') handleEditCancel();
-                    }}
-                    className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 outline-none w-full"
-                    autoFocus
-                  />
-                  <div className="flex gap-2 mt-2">
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editingProject.name}
+                      onChange={(e) => setEditingProject({ ...editingProject, name: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyPress={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') handleUpdateProject();
+                        if (e.key === 'Escape') handleEditCancel();
+                      }}
+                      className="text-xl font-semibold text-gray-800 border-b-2 border-blue-500 outline-none w-full"
+                      autoFocus
+                    />
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">基準日</label>
+                      <input
+                        type="date"
+                        value={editingProject.base_date}
+                        onChange={(e) => setEditingProject({ ...editingProject, base_date: e.target.value })}
+                        onClick={(e) => e.stopPropagation()}
+                        className="px-2 py-1 text-sm border border-gray-300 rounded outline-none focus:border-blue-500 w-full"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -195,9 +237,12 @@ function ProjectList() {
               ) : (
                 <h3 className="text-xl font-semibold text-gray-800 pr-20">{project.name}</h3>
               )}
-              <p className="text-gray-500 text-sm mt-2">
-                作成日: {new Date(project.created_at).toLocaleDateString('ja-JP')}
-              </p>
+              <div className="text-gray-500 text-sm mt-2">
+                <p>作成日: {new Date(project.created_at).toLocaleDateString('ja-JP')}</p>
+                {project.base_date && (
+                  <p>基準日: {new Date(project.base_date).toLocaleDateString('ja-JP')}</p>
+                )}
+              </div>
             </div>
           ))}
         </div>

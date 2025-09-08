@@ -12,8 +12,8 @@ interface ScheduleStore {
   error: string | null;
   
   fetchProjects: () => Promise<void>;
-  createProject: (name: string) => Promise<void>;
-  updateProject: (projectId: number, name: string) => Promise<void>;
+  createProject: (name: string, baseDate?: string) => Promise<void>;
+  updateProject: (projectId: number, name: string, baseDate?: string) => Promise<void>;
   deleteProject: (projectId: number) => Promise<void>;
   selectProject: (project: Project) => void;
   fetchSchedules: (projectId: number) => Promise<void>;
@@ -41,10 +41,13 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
   
-  createProject: async (name: string) => {
+  createProject: async (name: string, baseDate?: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await axios.post('/progress-manager/api/projects', { name });
+      const response = await axios.post('/progress-manager/api/projects', { 
+        name, 
+        base_date: baseDate 
+      });
       const newProject = response.data;
       set(state => ({
         projects: [newProject, ...state.projects],
@@ -56,13 +59,16 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     }
   },
   
-  updateProject: async (projectId: number, name: string) => {
+  updateProject: async (projectId: number, name: string, baseDate?: string) => {
     set({ loading: true, error: null });
     try {
-      await axios.put(`/progress-manager/api/projects/${projectId}`, { name });
+      await axios.put(`/progress-manager/api/projects/${projectId}`, { 
+        name, 
+        base_date: baseDate 
+      });
       set(state => ({
         projects: state.projects.map(p => 
-          p.id === projectId ? { ...p, name } : p
+          p.id === projectId ? { ...p, name, base_date: baseDate } : p
         ),
         loading: false
       }));
