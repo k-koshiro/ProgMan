@@ -190,8 +190,10 @@ function Schedule() {
         </button>
       </div>
 
-      {/* 製番内でのExcelアップロード */}
-      <UploadExcel projectId={currentProject?.id} />
+      {/* 初回のみ表示（スケジュール未作成時） */}
+      {schedules.length === 0 && (
+        <UploadExcel projectId={currentProject?.id} />
+      )}
 
       <ScheduleTable
         schedules={schedules}
