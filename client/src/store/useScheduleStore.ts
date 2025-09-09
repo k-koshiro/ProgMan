@@ -74,12 +74,15 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
         name, 
         base_date: baseDate 
       });
-      set(state => ({
-        projects: state.projects.map(p => 
+      set(state => {
+        const projects = state.projects.map(p =>
           p.id === projectId ? { ...p, name, base_date: baseDate } : p
-        ),
-        loading: false
-      }));
+        );
+        const currentProject = state.currentProject && state.currentProject.id === projectId
+          ? { ...state.currentProject, name, base_date: baseDate }
+          : state.currentProject;
+        return { projects, currentProject, loading: false };
+      });
     } catch (error) {
       set({ error: 'Failed to update project', loading: false });
       console.error('Error updating project:', error);
