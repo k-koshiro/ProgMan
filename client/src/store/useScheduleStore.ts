@@ -34,7 +34,15 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await axios.get('/progress-manager/api/projects');
-      set({ projects: response.data, loading: false });
+      const updatedProjects = response.data;
+      set(state => ({
+        projects: updatedProjects,
+        // 現在選択中のプロジェクトがあれば最新情報に差し替える
+        currentProject: state.currentProject
+          ? (updatedProjects.find((p: Project) => p.id === state.currentProject!.id) || state.currentProject)
+          : null,
+        loading: false
+      }));
     } catch (error) {
       set({ error: 'Failed to fetch projects', loading: false });
       console.error('Error fetching projects:', error);
