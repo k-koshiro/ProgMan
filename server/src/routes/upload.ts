@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import * as XLSX from 'xlsx';
 import { replaceSchedulesFromExcel } from '../db/queries.js';
-import { getProjectById, getSchedulesByProject } from '../db/queries.js';
+import { getProjectById, getSchedulesByProject, updateProjectBaseDate } from '../db/queries.js';
 import fs from 'fs';
 
 const router = express.Router();
@@ -74,6 +74,12 @@ router.post('/excel', upload.single('file'), async (req, res) => {
         console.error('XLSX read error:', e);
         return res.status(400).json({ error: `Excel読込エラー: ${e?.message || e}` });
       }
+      const toHalf = (s: string) => s.replace(/[０-９．／－]/g, (ch) => {
+        const m = '０１２３４５６７８９．／－';
+        const i = m.indexOf(ch);
+        return i >= 0 ? '0123456789./-'[i] : ch;
+      });
+
       const parseDate = (v: any): string | null => {
         if (!v) return null;
         if (v instanceof Date && !isNaN(v.getTime())) return v.toISOString().slice(0, 10);
@@ -85,11 +91,20 @@ router.post('/excel', upload.single('file'), async (req, res) => {
           return dt.toISOString().slice(0, 10);
         }
         if (typeof v === 'string') {
-          const s = v.trim().replace(/[.]/g, '/');
+          const s = toHalf(v.trim()).replace(/[.]/g, '/');
           const yyyy = (project?.base_date ? new Date(project.base_date) : new Date()).getFullYear();
           if (/^\d{1,2}[\/-]\d{1,2}$/.test(s)) {
             const [m, d] = s.split(/[\/-]/).map(n => n.padStart(2, '0'));
             return `${yyyy}-${m}-${d}`;
+          }
+          // M/D/YY (2桁年) を 1950-2049 ピボットで補完
+          const mdyy = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2})$/);
+          if (mdyy) {
+            const mm = mdyy[1].padStart(2, '0');
+            const dd = mdyy[2].padStart(2, '0');
+            const yy = parseInt(mdyy[3], 10);
+            const Y = yy <= 49 ? 2000 + yy : 1900 + yy;
+            return `${Y}-${mm}-${dd}`;
           }
           const m = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
           if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
@@ -176,6 +191,16 @@ router.post('/excel', upload.single('file'), async (req, res) => {
         const ws = wb.Sheets[sn];
         const extracted = pickFromSheet(ws);
         if (extracted.length > normalized.length) normalized = extracted;
+      }
+
+      // 一番上の開始日を基準日に同期
+      const firstWithStart = normalized.find(r => r.start_date);
+      if (firstWithStart?.start_date) {
+        try {
+          await updateProjectBaseDate(pid, firstWithStart.start_date);
+        } catch (e) {
+          console.warn('Failed to update project base_date:', e);
+        }
       }
 
       imported = normalized.length;
