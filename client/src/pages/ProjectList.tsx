@@ -6,7 +6,6 @@ function ProjectList() {
   const navigate = useNavigate();
   const { projects, loading, error, fetchProjects, createProject, updateProject, deleteProject } = useScheduleStore();
   const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectBaseDate, setNewProjectBaseDate] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProject, setEditingProject] = useState<{
     id: number | null;
@@ -25,9 +24,8 @@ function ProjectList() {
 
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
-      await createProject(newProjectName, newProjectBaseDate || undefined);
+      await createProject(newProjectName);
       setNewProjectName('');
-      setNewProjectBaseDate('');
       setShowCreateForm(false);
     }
   };
@@ -112,17 +110,7 @@ function ProjectList() {
                   onKeyPress={(e) => e.key === 'Enter' && handleCreateProject()}
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  基準日（オプション）
-                </label>
-                <input
-                  type="date"
-                  value={newProjectBaseDate}
-                  onChange={(e) => setNewProjectBaseDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              {/* 基準日入力は新規作成時には不要に変更 */}
               <div className="flex gap-2">
                 <button
                   onClick={handleCreateProject}
@@ -134,7 +122,6 @@ function ProjectList() {
                   onClick={() => {
                     setShowCreateForm(false);
                     setNewProjectName('');
-                    setNewProjectBaseDate('');
                   }}
                   className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
                 >
