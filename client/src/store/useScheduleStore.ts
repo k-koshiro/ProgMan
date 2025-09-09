@@ -17,7 +17,7 @@ interface ScheduleStore {
   deleteProject: (projectId: number) => Promise<void>;
   selectProject: (project: Project) => void;
   fetchSchedules: (projectId: number) => Promise<void>;
-  updateSchedule: (schedule: Partial<Schedule>) => void;
+  updateSchedule: (schedule: Partial<Schedule>) => Promise<void>;
   connectSocket: () => void;
   disconnectSocket: () => void;
 }

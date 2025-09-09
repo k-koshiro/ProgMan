@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import axios, { AxiosError } from 'axios';
 import { useScheduleStore } from '../store/useScheduleStore';
+import type { UploadResult } from '../types';
 
 function UploadExcel({ projectId }: { projectId?: number }) {
   const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<UploadResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { fetchSchedules, fetchProjects } = useScheduleStore();
@@ -45,13 +47,8 @@ function UploadExcel({ projectId }: { projectId?: number }) {
       const fd = new FormData();
       fd.append('file', file);
       if (projectId) fd.append('projectId', String(projectId));
-      const res = await fetch('/progress-manager/api/upload/excel', {
-        method: 'POST',
-        body: fd
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'アップロードに失敗しました');
-      setResult(json);
+      const { data } = await axios.post<UploadResult>('/progress-manager/api/upload/excel', fd);
+      setResult(data);
       // 取り込み成功時は最新スケジュールを取得
       if (projectId) {
         try {
@@ -59,8 +56,9 @@ function UploadExcel({ projectId }: { projectId?: number }) {
           await fetchProjects(); // 基準日更新の反映
         } catch {}
       }
-    } catch (e: any) {
-      setError(e.message || 'アップロードに失敗しました');
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>;
+      setError(err.response?.data?.error || err.message || 'アップロードに失敗しました');
     } finally {
       setLoading(false);
     }

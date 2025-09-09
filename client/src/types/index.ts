@@ -21,3 +21,15 @@ export interface Schedule {
   sort_order: number;
   updated_at?: string;
 }
+
+export interface UploadResult {
+  ok?: boolean;
+  filename: string;
+  originalname: string;
+  mimetype: string;
+  size: number;
+  savedPath: string;
+  projectId?: number;
+  imported?: number;
+  updatedCount?: number;
+}

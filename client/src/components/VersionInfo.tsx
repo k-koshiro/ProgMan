@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
+import axios from 'axios';
 
 function VersionInfo() {
   const [version, setVersion] = useState<{ commit: string; timestamp: string } | null>(null);
 
   useEffect(() => {
-    fetch('/progress-manager/api/version')
-      .then(res => res.json())
-      .then(data => setVersion(data))
+    axios
+      .get<{ commit: string; timestamp: string }>('/progress-manager/api/version')
+      .then(res => setVersion(res.data))
       .catch(err => console.error('Failed to fetch version:', err));
   }, []);
 

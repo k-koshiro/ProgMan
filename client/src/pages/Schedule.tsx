@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
+import type { Schedule as ScheduleType } from '../types';
 import ScheduleTable from '../components/ScheduleTable';
 import UploadExcel from '../components/UploadExcel';
 
@@ -72,7 +73,7 @@ function Schedule() {
     }
   }, [projects, projectId, currentProject, selectProject, navigate]);
 
-  const handleUpdateSchedule = async (schedule: any) => {
+  const handleUpdateSchedule = async (schedule: Partial<ScheduleType>) => {
     console.log('Updating schedule:', schedule);
     updateSchedule(schedule);
   };

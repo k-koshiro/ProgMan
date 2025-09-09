@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 interface EditableCellProps {
   value: string | number | undefined;
-  onChange: (value: string | number) => void;
+  onChange: (value: string | number | undefined) => void;
   type?: 'text' | 'number';
   placeholder?: string;
   step?: number;
@@ -26,7 +26,7 @@ function EditableCell({ value, onChange, type = 'text', placeholder = '', step, 
     if (type === 'number') {
       // 空文字の場合は削除（undefinedを送信）
       if (localValue === '' || localValue === null) {
-        onChange(undefined as any);
+        onChange(undefined);
         setIsEditing(false);
         return;
       }
