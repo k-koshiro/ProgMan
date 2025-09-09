@@ -107,7 +107,7 @@ router.post('/excel', upload.single('file'), async (req, res) => {
           end: new Set(['終了日','終了','End','End Date','EndDate']),
           dur: new Set(['日数','期間','工期','Duration']),
           owner: new Set(['担当','担当者','Owner','Assignee','メンバ','メンバー']),
-          cat: new Set(['カテゴリ','区分','Category'])
+          cat: new Set(['カテゴリ','区分','Category','大項目'])
         };
         let headerIdx = -1;
         let mapIdx: Record<string, number> | null = null;
@@ -132,6 +132,7 @@ router.post('/excel', upload.single('file'), async (req, res) => {
         }
         if (headerIdx === -1 || !mapIdx) return [] as any[];
         const out: any[] = [];
+        let lastCategory: string | null = null;
         for (let i = headerIdx + 1; i < rows.length; i++) {
           const r = rows[i] || [];
           const item = (r[mapIdx.item] ?? '').toString().trim();
@@ -153,8 +154,12 @@ router.post('/excel', upload.single('file'), async (req, res) => {
           }
           if (!duration && start) duration = 1;
 
+          const rawCat = mapIdx.category !== undefined ? (r[mapIdx.category]?.toString().trim() || null) : null;
+          const category = rawCat || lastCategory;
+          if (rawCat) lastCategory = rawCat; // 空欄は直前のカテゴリを引き継ぐ
+
           out.push({
-            category: mapIdx.category !== undefined ? (r[mapIdx.category]?.toString().trim() || null) : null,
+            category: category ?? null,
             item,
             owner: mapIdx.owner !== undefined ? (r[mapIdx.owner]?.toString().trim() || null) : null,
             start_date: start,
