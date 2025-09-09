@@ -85,6 +85,9 @@ function Schedule() {
   const handleSaveBaseDate = async () => {
     if (currentProject) {
       await updateProject(currentProject.id, currentProject.name, editBaseDate || undefined);
+      // 基準日変更に伴う日付シフトが行われるため、最新スケジュールを取得
+      await fetchSchedules(currentProject.id);
+      await fetchProjects();
       setIsEditingBaseDate(false);
     }
   };

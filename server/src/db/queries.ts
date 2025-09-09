@@ -83,6 +83,55 @@ export const deleteProjectSchedules = (projectId: number): Promise<void> => {
   });
 };
 
+export const getTopScheduleStartDate = (projectId: number): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT start_date FROM schedules WHERE project_id = ? AND start_date IS NOT NULL ORDER BY sort_order LIMIT 1',
+      [projectId],
+      (err, row: { start_date?: string } | undefined) => {
+        if (err) reject(err);
+        else resolve(row?.start_date || null);
+      }
+    );
+  });
+};
+
+export const shiftProjectDates = (projectId: number, deltaDays: number, opts?: { shiftActual?: boolean }): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (!deltaDays) return resolve();
+    const offset = `${deltaDays} day`;
+    db.serialize(() => {
+      db.run('BEGIN');
+      db.run(
+        'UPDATE schedules SET start_date = date(start_date, ?) WHERE project_id = ? AND start_date IS NOT NULL',
+        [offset, projectId],
+        (err) => {
+          if (err) {
+            db.run('ROLLBACK');
+            return reject(err);
+          }
+          const finish = (e?: Error | null) => {
+            if (e) {
+              db.run('ROLLBACK');
+              reject(e);
+            } else {
+              db.run('COMMIT', (cerr) => (cerr ? reject(cerr) : resolve()));
+            }
+          };
+          if (opts?.shiftActual) {
+            db.run(
+              'UPDATE schedules SET actual_start = date(actual_start, ?) WHERE project_id = ? AND actual_start IS NOT NULL',
+              [offset, projectId],
+              finish
+            );
+          } else {
+            finish();
+          }
+        }
+      );
+    });
+  });
+};
 export interface ExcelScheduleRow {
   category?: string | null;
   item: string;

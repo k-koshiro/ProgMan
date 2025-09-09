@@ -1,5 +1,6 @@
 import express from 'express';
-import { getAllProjects, createProject, deleteProject, updateProjectName, updateProjectBaseDate } from '../db/queries.js';
+import { getAllProjects, createProject, deleteProject, updateProjectName, updateProjectBaseDate, getTopScheduleStartDate, shiftProjectDates } from '../db/queries.js';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 const router = express.Router();
 
@@ -46,6 +47,18 @@ router.put('/:id', async (req, res) => {
     }
     
     if (base_date !== undefined) {
+      // 連動: 先頭タスクの開始日との差分で全体をシフト
+      try {
+        const topStart = await getTopScheduleStartDate(projectId);
+        if (topStart) {
+          const delta = differenceInCalendarDays(parseISO(base_date), parseISO(topStart));
+          if (delta !== 0) {
+            await shiftProjectDates(projectId, delta /* , { shiftActual: false } */);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to shift schedules with base_date change:', e);
+      }
       await updateProjectBaseDate(projectId, base_date);
     }
     
