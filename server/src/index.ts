@@ -13,6 +13,7 @@ import projectRoutes from './routes/projects.js';
 import scheduleRoutes from './routes/schedules.js';
 import versionRoutes from './routes/version.js';
 import uploadRoutes from './routes/upload.js';
+import commentRoutes from './routes/comments.js';
 import { setupScheduleSocket } from './sockets/schedule.js';
 
 const __filename = fileURLToPath(import.meta.url || '');
@@ -29,7 +30,7 @@ const io = new Server(httpServer, {
   }
 });
 
-const PORT = process.env.PORT || 5001;
+const PORT = Number(process.env.PORT || 5001);
 
 app.use(cors());
 app.use(express.json());
@@ -43,6 +44,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/version', versionRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/comments', commentRoutes);
 
 setupScheduleSocket(io);
 

@@ -33,3 +33,12 @@ export interface UploadResult {
   imported?: number;
   updatedCount?: number;
 }
+
+export interface CommentEntry {
+  id?: number;
+  project_id: number;
+  owner: string;
+  comment_date: string; // yyyy-MM-dd
+  body: string;
+  updated_at?: string;
+}

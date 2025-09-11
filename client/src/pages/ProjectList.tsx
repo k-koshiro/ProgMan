@@ -164,6 +164,18 @@ function ProjectList() {
                   </svg>
                 </button>
                 <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/comments/${project.id}`);
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
+                  title="担当コメントへ"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M18 13a1 1 0 01-1 1H7l-4 4V4a1 1 0 011-1h13a1 1 0 011 1v9z" />
+                  </svg>
+                </button>
+                <button
                   onClick={(e) => handleEditClick(e, project)}
                   className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-lg transition-colors"
                   title="製番情報を編集"

@@ -53,7 +53,26 @@ export const initDatabase = () => {
           return;
         }
         console.log('Database initialized successfully');
-        resolve();
+        // comments テーブル作成（担当×日付で一意）
+        db.run(`
+          CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            owner TEXT NOT NULL,
+            comment_date DATE NOT NULL,
+            body TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(project_id, owner, comment_date),
+            FOREIGN KEY (project_id) REFERENCES projects(id)
+          )
+        `, (cErr) => {
+          if (cErr) {
+            console.error('Error creating comments table:', cErr);
+            reject(cErr);
+            return;
+          }
+          resolve();
+        });
       });
     });
   });

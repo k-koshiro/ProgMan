@@ -12,12 +12,21 @@ export interface Schedule {
   item: string;
   owner?: string;
   start_date?: string;
-  duration?: number;
+  duration?: number | null;
   end_date?: string;
   progress?: number;
   actual_start?: string;
-  actual_duration?: number;
+  actual_duration?: number | null;
   actual_end?: string;
   sort_order: number;
+  updated_at?: string;
+}
+
+export interface CommentEntry {
+  id?: number;
+  project_id: number;
+  owner: string;
+  comment_date: string; // yyyy-MM-dd
+  body: string;
   updated_at?: string;
 }

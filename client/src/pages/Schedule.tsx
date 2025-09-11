@@ -4,6 +4,7 @@ import { useScheduleStore } from '../store/useScheduleStore';
 import type { Schedule as ScheduleType } from '../types';
 import ScheduleTable from '../components/ScheduleTable';
 import UploadExcel from '../components/UploadExcel';
+import { Link } from 'react-router-dom';
 
 function Schedule() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -183,12 +184,22 @@ function Schedule() {
             )}
           </div>
         </div>
-        <button
-          onClick={() => navigate('/projects')}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
-        >
-          製番一覧へ
-        </button>
+        <div className="flex gap-2">
+          {projectId && (
+            <Link
+              to={`/comments/${projectId}`}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded transition-colors"
+            >
+              担当コメント
+            </Link>
+          )}
+          <button
+            onClick={() => navigate('/projects')}
+            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
+          >
+            製番一覧へ
+          </button>
+        </div>
       </div>
 
       {/* 初回のみ表示（スケジュール未作成時） */}

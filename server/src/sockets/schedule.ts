@@ -1,5 +1,5 @@
 import { Server, Socket } from 'socket.io';
-import { updateSchedule, getSchedulesByProject } from '../db/queries.js';
+import { updateSchedule, getSchedulesByProject, getCommentsByProject } from '../db/queries.js';
 import { Schedule } from '../types/index.js';
 
 export const setupScheduleSocket = (io: Server) => {
@@ -31,6 +31,22 @@ export const setupScheduleSocket = (io: Server) => {
       } catch (error) {
         console.error('Error broadcasting schedule update:', error);
         socket.emit('error', { message: 'Failed to broadcast update' });
+      }
+    });
+
+    // コメント更新通知（HTTP保存後にクライアントから発火想定）
+    socket.on('update-comment', async (projectIdParam?: number) => {
+      try {
+        const projectId = projectIdParam || currentProjectId;
+        if (!projectId) {
+          socket.emit('error', { message: 'Project ID is required' });
+          return;
+        }
+        const comments = await getCommentsByProject(projectId);
+        io.to(`project-${projectId}`).emit('comments-updated', comments);
+      } catch (error) {
+        console.error('Error broadcasting comments update:', error);
+        socket.emit('error', { message: 'Failed to broadcast comments update' });
       }
     });
     

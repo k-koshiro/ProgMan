@@ -1,5 +1,5 @@
 import { db } from './init.js';
-import { Project, Schedule } from '../types/index.js';
+import { Project, Schedule, CommentEntry } from '../types/index.js';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { initialCategories } from '../data/initialData.js';
 import { scheduleTemplates } from '../data/scheduleTemplate.js';
@@ -265,9 +265,9 @@ export const updateSchedule = (schedule: Partial<Schedule>): Promise<void> => {
       // updated_atを追加
       updateFields.push('updated_at = CURRENT_TIMESTAMP');
       
-      const values = Object.keys(fieldsToUpdate)
+      const values = Object.keys(fieldsToUpdate as Partial<Schedule>)
         .filter(key => key !== 'id' && key !== 'project_id' && key !== 'category' && key !== 'item' && key !== 'sort_order')
-        .map(key => fieldsToUpdate[key as keyof Schedule]);
+        .map(key => (fieldsToUpdate as any)[key]);
       
       values.push(id);
       
@@ -355,4 +355,41 @@ export const initializeProjectSchedules = async (projectId: number): Promise<voi
     console.error('Error initializing project schedules:', error);
     throw error;
   }
+};
+
+// =====================
+// Comments (担当コメント)
+// =====================
+
+export const getCommentsByProject = (projectId: number): Promise<CommentEntry[]> => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM comments WHERE project_id = ? ORDER BY comment_date DESC, updated_at DESC',
+      [projectId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows as CommentEntry[]);
+      }
+    );
+  });
+};
+
+export const upsertComment = (entry: Omit<CommentEntry, 'id' | 'updated_at'>): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const { project_id, owner, comment_date, body } = entry;
+    if (!project_id || !owner || !comment_date) {
+      reject(new Error('project_id, owner, comment_date are required'));
+      return;
+    }
+    const sql = `
+      INSERT INTO comments (project_id, owner, comment_date, body)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(project_id, owner, comment_date)
+      DO UPDATE SET body = excluded.body, updated_at = CURRENT_TIMESTAMP
+    `;
+    db.run(sql, [project_id, owner, comment_date, body ?? ''], (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
 };

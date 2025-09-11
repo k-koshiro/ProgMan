@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ProjectList from './pages/ProjectList';
 import Schedule from './pages/Schedule';
+import CommentsPage from './pages/Comments';
 import VersionInfo from './components/VersionInfo';
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/schedule/:projectId" element={<Schedule />} />
+          <Route path="/comments/:projectId" element={<CommentsPage />} />
         </Routes>
         <VersionInfo />
       </div>
