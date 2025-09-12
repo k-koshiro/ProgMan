@@ -162,8 +162,8 @@ function CommentsPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => navigate(`/schedule/${projectId}`)} className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded">進捗管理表へ</button>
-          <button onClick={() => navigate('/projects')} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">製番一覧へ</button>
+          <button onClick={() => navigate(`/schedule/${projectId}`)} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">進捗管理表へ</button>
+          <button onClick={() => navigate('/projects')} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors">製番一覧へ</button>
         </div>
       </div>
 
@@ -171,13 +171,13 @@ function CommentsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-700">対象日</label>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 rounded" />
+          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-700">最近</span>
           <div className="flex flex-wrap gap-1">
             {recentDates.map(d => (
-              <button key={d} onClick={() => setSelectedDate(d)} className={`px-2 py-0.5 text-xs rounded ${d===selectedDate? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
+              <button key={d} onClick={() => setSelectedDate(d)} className={`px-2 py-0.5 text-xs rounded-md transition-colors ${d===selectedDate? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                 {new Date(d).toLocaleDateString('ja-JP')}
               </button>
             ))}
@@ -185,7 +185,7 @@ function CommentsPage() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <label className="text-sm text-gray-700">担当フィルタ</label>
-          <input value={ownerFilter} onChange={e=>setOwnerFilter(e.target.value)} placeholder="例: 佐藤" className="px-2 py-1 text-sm border border-gray-300 rounded" />
+          <input value={ownerFilter} onChange={e=>setOwnerFilter(e.target.value)} placeholder="例: 佐藤" className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
       </div>
 
@@ -196,9 +196,9 @@ function CommentsPage() {
       )}
 
       {/* 全体報告 */}
-      <div className="mb-6 bg-white rounded-lg shadow p-5 border border-indigo-100">
+      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md hover:shadow-lg transition-shadow p-5 border border-blue-200">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-gray-900">{overallLabel}</h2>
+          <h2 className="text-lg font-bold text-blue-900">{overallLabel}</h2>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500">{new Date(selectedDate).toLocaleDateString('ja-JP')} のコメント</span>
             {saving[keyOf(OVERALL_KEY, selectedDate)] && (
@@ -207,7 +207,7 @@ function CommentsPage() {
           </div>
         </div>
         <textarea
-          className="w-full min-h-[160px] border border-gray-300 rounded p-3 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full min-h-[160px] border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="全体の進捗・課題・リスク・支援要請などを記入"
           value={getValueForSelected(OVERALL_KEY)}
           onChange={(e) => { handleChange(OVERALL_KEY, e.target.value); scheduleSave(OVERALL_KEY, e.target.value); }}
@@ -235,7 +235,7 @@ function CommentsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-6">
             {ownersLeft.map(owner => (
-              <div key={`L-${owner}`} className="bg-white rounded-lg shadow p-4">
+              <div key={`L-${owner}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
                   <div className="flex items-center gap-2">
@@ -246,7 +246,7 @@ function CommentsPage() {
                   </div>
                 </div>
                 <textarea
-                  className="w-full min-h-[96px] border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="本日の進捗・課題・所要支援などを記入"
                   value={getValueForSelected(owner)}
                   onChange={(e) => { handleChange(owner, e.target.value); scheduleSave(owner, e.target.value); }}
@@ -258,7 +258,7 @@ function CommentsPage() {
                       {commentsByOwner[owner]
                         .filter(c => c.comment_date !== selectedDate)
                         .map(c => (
-                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded p-2">
+                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded-md p-2">
                             <div className="text-xs text-gray-500 mb-1">{new Date(c.comment_date).toLocaleDateString('ja-JP')} のコメント</div>
                             <pre className="whitespace-pre-wrap text-sm text-gray-800">{c.body}</pre>
                           </div>
@@ -271,7 +271,7 @@ function CommentsPage() {
           </div>
           <div className="space-y-6">
             {ownersRight.map(owner => (
-              <div key={`R-${owner}`} className="bg-white rounded-lg shadow p-4">
+              <div key={`R-${owner}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
                   <div className="flex items-center gap-2">
@@ -282,7 +282,7 @@ function CommentsPage() {
                   </div>
                 </div>
                 <textarea
-                  className="w-full min-h-[96px] border border-gray-300 rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="本日の進捗・課題・所要支援などを記入"
                   value={getValueForSelected(owner)}
                   onChange={(e) => { handleChange(owner, e.target.value); scheduleSave(owner, e.target.value); }}
@@ -294,7 +294,7 @@ function CommentsPage() {
                       {commentsByOwner[owner]
                         .filter(c => c.comment_date !== selectedDate)
                         .map(c => (
-                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded p-2">
+                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded-md p-2">
                             <div className="text-xs text-gray-500 mb-1">{new Date(c.comment_date).toLocaleDateString('ja-JP')} のコメント</div>
                             <pre className="whitespace-pre-wrap text-sm text-gray-800">{c.body}</pre>
                           </div>
