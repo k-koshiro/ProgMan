@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useCommentStore } from '../store/useCommentStore';
 import type { CommentEntry, Schedule } from '../types';
+import MilestoneBoard from '../components/MilestoneBoard';
 
 function groupByOwner(comments: CommentEntry[]): Record<string, CommentEntry[]> {
   return comments.reduce((acc, c) => {
@@ -100,6 +101,15 @@ function CommentsPage() {
     return Array.from(ds).sort((a,b) => (a < b ? 1 : -1)).slice(0, 14);
   }, [comments, today]);
 
+  // コメントページ上部に表示するマイルストーン（進捗表の「マイルストーン」カテゴリ）
+  const milestoneBoardItems = useMemo(() => {
+    return schedules
+      .filter(s => (s.category || '').trim() === 'マイルストーン')
+      .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
+  }, [schedules]);
+
+  // overallRange は不要になったが将来の補助に残す場合はここで維持可
+
   // マイルストーン: 基準日、最小開始、最大終了
   const milestone = useMemo(() => {
     const dates = schedules.reduce((acc, s) => {
@@ -179,6 +189,11 @@ function CommentsPage() {
         </div>
       </div>
 
+
+      {/* マイルストーン（コメント画面上部） */}
+      {milestoneBoardItems.length > 0 && (
+        <MilestoneBoard items={milestoneBoardItems} />
+      )}
 
       {/* 全体報告 */}
       <div className="mb-6 bg-white rounded-lg shadow p-5 border border-indigo-100">

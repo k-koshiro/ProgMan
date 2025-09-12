@@ -42,6 +42,16 @@
 - 明示指示があるまで `git commit` / `git push` は禁止。必要時は対象ファイルとコミットメッセージ案を提示して承認を得る。
 - 変更は原則 `apply_patch` で適用。コマンド・パス・再現手順を優先して示す。
 
+### ドキュメント更新ルール（厳守）
+- 実装・仕様変更・UI追加などの進捗が発生するたびに、`SPEC.md` を即時更新すること。
+- 更新内容には「目的／振る舞い／API・データモデル差分／画面仕様の変更点／既知の注意点」を簡潔に含める。
+- 変更を伴うPRやパッチには、`SPEC.md` 更新を含めるか、更新不要の理由を記載する。
+
+### ローカル画像参照（Windows/WSL）
+- スクリーンショットは WSL から次のパスで参照可能: `/mnt/c/Users/koshiro/Pictures/Screenshots/`
+- 例: `ls -la /mnt/c/Users/koshiro/Pictures/Screenshots` で一覧取得可。
+- UI 調整時はこのフォルダの画像を基準にし、変更を SPEC.md に反映すること。
+
 ## 実行・権限ポリシー（重要）
 - 本エージェント実行環境ではポート待受が制限されるため、サーバー/クライアントの常駐起動は行いません。起動は利用者側で実施、または明示承認を得て指示に従います。
 - 起動手順（利用者側）: `npm run install:all` → 同時起動 `npm run dev`。本番相当は `cd server && npm run build && npm start` / `cd client && npm run build && npm run preview`。
