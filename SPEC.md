@@ -11,25 +11,30 @@
 - ベースパス: 画面は`/progress-manager/*`、開発時は Vite が API/Socket をプロキシ。
 
 ## URL / パス
-- 画面: `/progress-manager/projects`, `/progress-manager/schedule/:projectId`, `/progress-manager/comments/:projectId`
+- 画面: `/progress-manager/projects`, `/progress-manager/schedule/:projectId`, `/progress-manager/comments/:projectId/:date?`
 - API（外部から）: `/progress-manager/api/*` → 逆プロキシでサーバー `/api/*` へ。
 - Socket.IO（外部から）: `/progress-manager/socket.io/` → 逆プロキシでサーバー `/socket.io/` へ。
 
 ## データモデル
 - Project: `id, name, base_date?, created_at`
 - Schedule: `id, project_id, category, item, owner?, start_date?, duration?, end_date?, progress?, actual_start?, actual_duration?, actual_end?, sort_order, updated_at?`
+- CommentPage: `id?, project_id, comment_date(YYYY-MM-DD), created_at?`（`UNIQUE(project_id, comment_date)`）
 - Comment: `id?, project_id, owner, comment_date(YYYY-MM-DD), body, updated_at?`（`UNIQUE(project_id, owner, comment_date)`）
 
 ## 画面仕様
 - 製番一覧: 一覧表示/新規作成/名称・基準日編集/削除、コメント画面への導線。
 - スケジュール: カテゴリ毎の表。カテゴリ行で担当一括編集、セル編集は日付（カレンダー/直接入力）・日数・進捗。終了日は表示専用（クライアント側は開始含む`duration-1`日で算出）。
 - 担当コメント:
-  - ページ上部に「マイルストーン」2段ボードを表示（スクリーンショット準拠）。
+  - URL は `/comments/:projectId/:date?`。`:date` 未指定時は最新ページに自動遷移し、存在しない日付指定時も最新へ誘導。
+  - コメントは「コメントページ（日付バージョン）」単位で保存。未来・過去いずれも作成/編集/削除可能で、空ページ作成も許容する。
+  - ページ操作 UI: 最新日表示、日付リスト（降順）、カレンダー入力での新規作成（「●月●日バージョンのコメントページを新規作成」ボタン）、選択ページ削除、担当フィルタ。
+  - ページ選択時のみコメントの編集が可能（未選択時は入力欄を無効化）。保存は 1 秒デバウンスで実行。
+  - ページ上部に「マイルストーン」2段ボードを表示。
     - 上段: 各マイルストーンの名称セル（色付き、白文字）。
-    - 下段: 予定日（`start_date`）を `YYYY/M/D` で表示。左右は太線枠、各セルに罫線。
+    - 下段: 予定日（`start_date`）を `YYYY/M/D (曜)` で表示。左右は太線枠、各セルに罫線。
     - 抽出元: 進捗表のカテゴリが「マイルストーン」の行。
-    - データが無い場合はボード非表示（将来フォールバック可）。
-  - 固定セクション（全体報告+左右担当）を取得して当日分を upsert。履歴表示・担当フィルタあり。
+    - データが無い場合はボード非表示（フォールバック可）。
+  - 固定セクション（全体報告+左右担当）を取得してページ日付ごとに upsert。
 
 ## API 仕様（主要）
 - Projects
@@ -44,14 +49,17 @@
   - POST `/api/upload/excel` フォーム`file`（`.xlsx/.xlsm/.xls`）と `projectId`。見出し自動検出、全角→半角、複数日付形式対応。先頭の開始日を `base_date` に同期し、既存スケジュールを全置換。
 - Comments
   - GET `/api/comments/sections` 固定配置を返却（サーバー内ハードコード）
-  - GET `/api/comments/:projectId` 一覧（`comment_date DESC, updated_at DESC`）
-  - POST `/api/comments` Upsert（`project_id, owner, comment_date`で一意。`comment_date`省略時は当日）
+  - GET `/api/comments/:projectId/pages` コメントページ一覧と `latestDate` を返却（降順）
+  - POST `/api/comments/:projectId/pages` `{ comment_date }` でページ作成（重複時 409）
+  - DELETE `/api/comments/:projectId/pages/:date` ページ削除（対応するコメントも一括削除）
+  - GET `/api/comments/:projectId?date=YYYY-MM-DD` 指定日付ページのコメント一覧を返却。`date` 省略時は最新ページ。未存在は 404
+  - POST `/api/comments` Upsert（`project_id, owner, comment_date` で一意。ページ未作成の場合は自動で `comment_pages` に登録）
 
 - Version: GET `/api/version` `{ commit, timestamp, buildTime }`
 
 ## WebSocket
-- 参加: `join-project` で `project-{id}` ルームへ。
-- 通知: `update-schedule` 受信→最新一覧を `schedules-updated` で配信（保存はHTTP側）。`update-comment` 受信→ `comments-updated` で配信。
+- 参加: `join-project` で `project-{id}` ルーム、`join-comment-page` で `project-{id}-{date}` ルームへ。
+- 通知: `update-schedule` 受信→最新一覧を `schedules-updated` で配信。コメントは HTTP 保存時に `comments-updated`（`{ date, comments }`）を対象ページへ、ページ作成/削除時に `comment-page-created` / `comment-page-deleted` をプロジェクト全体へブロードキャスト。
 
 ## 既知の注意点
 - 終了日算出の差異（サーバーは開始非包含、クライアントは開始包含）により1日ずれる。統一要。
