@@ -42,3 +42,10 @@ export interface CommentEntry {
   body: string;
   updated_at?: string;
 }
+
+export interface CommentPage {
+  id?: number;
+  project_id: number;
+  comment_date: string;
+  created_at?: string;
+}

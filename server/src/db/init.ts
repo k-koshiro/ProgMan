@@ -53,25 +53,54 @@ export const initDatabase = () => {
           return;
         }
         console.log('Database initialized successfully');
-        // comments テーブル作成（担当×日付で一意）
+        // コメントページテーブル（プロジェクト×日付で一意）
         db.run(`
-          CREATE TABLE IF NOT EXISTS comments (
+          CREATE TABLE IF NOT EXISTS comment_pages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project_id INTEGER NOT NULL,
-            owner TEXT NOT NULL,
             comment_date DATE NOT NULL,
-            body TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(project_id, owner, comment_date),
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(project_id, comment_date),
             FOREIGN KEY (project_id) REFERENCES projects(id)
           )
-        `, (cErr) => {
-          if (cErr) {
-            console.error('Error creating comments table:', cErr);
-            reject(cErr);
+        `, (pErr) => {
+          if (pErr) {
+            console.error('Error creating comment_pages table:', pErr);
+            reject(pErr);
             return;
           }
-          resolve();
+          // comments テーブル作成（担当×日付で一意）
+          db.run(`
+            CREATE TABLE IF NOT EXISTS comments (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              project_id INTEGER NOT NULL,
+              owner TEXT NOT NULL,
+              comment_date DATE NOT NULL,
+              body TEXT NOT NULL,
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE(project_id, owner, comment_date),
+              FOREIGN KEY (project_id) REFERENCES projects(id)
+            )
+          `, (cErr) => {
+            if (cErr) {
+              console.error('Error creating comments table:', cErr);
+              reject(cErr);
+              return;
+            }
+            // 既存コメントからページ情報を補完
+            db.run(
+              `INSERT OR IGNORE INTO comment_pages (project_id, comment_date)
+               SELECT project_id, comment_date FROM comments GROUP BY project_id, comment_date`,
+              (seedErr) => {
+                if (seedErr) {
+                  console.error('Error seeding comment_pages:', seedErr);
+                  reject(seedErr);
+                  return;
+                }
+                resolve();
+              }
+            );
+          });
         });
       });
     });

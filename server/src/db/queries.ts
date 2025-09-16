@@ -1,5 +1,5 @@
 import { db } from './init.js';
-import { Project, Schedule, CommentEntry } from '../types/index.js';
+import { Project, Schedule, CommentEntry, CommentPage } from '../types/index.js';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { initialCategories } from '../data/initialData.js';
 import { scheduleTemplates } from '../data/scheduleTemplate.js';
@@ -358,14 +358,88 @@ export const initializeProjectSchedules = async (projectId: number): Promise<voi
 };
 
 // =====================
-// Comments (担当コメント)
+// Comment Pages & Entries
 // =====================
 
-export const getCommentsByProject = (projectId: number): Promise<CommentEntry[]> => {
+export const getCommentPages = (projectId: number): Promise<CommentPage[]> => {
   return new Promise((resolve, reject) => {
     db.all(
-      'SELECT * FROM comments WHERE project_id = ? ORDER BY comment_date DESC, updated_at DESC',
+      'SELECT * FROM comment_pages WHERE project_id = ? ORDER BY comment_date DESC',
       [projectId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows as CommentPage[]);
+      }
+    );
+  });
+};
+
+export const getCommentPage = (projectId: number, commentDate: string): Promise<CommentPage | null> => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM comment_pages WHERE project_id = ? AND comment_date = ?',
+      [projectId, commentDate],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve((row as CommentPage) || null);
+      }
+    );
+  });
+};
+
+export const getLatestCommentPageDate = (projectId: number): Promise<string | null> => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT comment_date FROM comment_pages WHERE project_id = ? ORDER BY comment_date DESC LIMIT 1',
+      [projectId],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve((row as { comment_date: string } | undefined)?.comment_date ?? null);
+      }
+    );
+  });
+};
+
+export const createCommentPage = (projectId: number, commentDate: string): Promise<CommentPage> => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT INTO comment_pages (project_id, comment_date) VALUES (?, ?)',
+      [projectId, commentDate],
+      function(err) {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve({
+          id: this.lastID,
+          project_id: projectId,
+          comment_date: commentDate,
+        });
+      }
+    );
+  });
+};
+
+export const deleteCommentPage = (projectId: number, commentDate: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM comments WHERE project_id = ? AND comment_date = ?', [projectId, commentDate], (commentErr) => {
+      if (commentErr) {
+        reject(commentErr);
+        return;
+      }
+      db.run('DELETE FROM comment_pages WHERE project_id = ? AND comment_date = ?', [projectId, commentDate], (pageErr) => {
+        if (pageErr) reject(pageErr);
+        else resolve();
+      });
+    });
+  });
+};
+
+export const getCommentsByProjectAndDate = (projectId: number, commentDate: string): Promise<CommentEntry[]> => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM comments WHERE project_id = ? AND comment_date = ? ORDER BY owner ASC',
+      [projectId, commentDate],
       (err, rows) => {
         if (err) reject(err);
         else resolve(rows as CommentEntry[]);
@@ -381,15 +455,25 @@ export const upsertComment = (entry: Omit<CommentEntry, 'id' | 'updated_at'>): P
       reject(new Error('project_id, owner, comment_date are required'));
       return;
     }
-    const sql = `
-      INSERT INTO comments (project_id, owner, comment_date, body)
-      VALUES (?, ?, ?, ?)
-      ON CONFLICT(project_id, owner, comment_date)
-      DO UPDATE SET body = excluded.body, updated_at = CURRENT_TIMESTAMP
-    `;
-    db.run(sql, [project_id, owner, comment_date, body ?? ''], (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
+    db.run(
+      'INSERT OR IGNORE INTO comment_pages (project_id, comment_date) VALUES (?, ?)',
+      [project_id, comment_date],
+      (pageErr) => {
+        if (pageErr) {
+          reject(pageErr);
+          return;
+        }
+        const sql = `
+          INSERT INTO comments (project_id, owner, comment_date, body)
+          VALUES (?, ?, ?, ?)
+          ON CONFLICT(project_id, owner, comment_date)
+          DO UPDATE SET body = excluded.body, updated_at = CURRENT_TIMESTAMP
+        `;
+        db.run(sql, [project_id, owner, comment_date, body ?? ''], (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      }
+    );
   });
 };

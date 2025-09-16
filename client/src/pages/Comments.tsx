@@ -1,47 +1,78 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import type { AxiosError } from 'axios';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useCommentStore } from '../store/useCommentStore';
 import type { CommentEntry, Schedule } from '../types';
 import MilestoneBoard from '../components/MilestoneBoard';
 
+const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+const fullDateFormatter = new Intl.DateTimeFormat('ja-JP');
+const shortDateFormatter = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
+
 function groupByOwner(comments: CommentEntry[]): Record<string, CommentEntry[]> {
   return comments.reduce((acc, c) => {
-    acc[c.owner] = acc[c.owner] || [];
+    if (!acc[c.owner]) acc[c.owner] = [];
     acc[c.owner].push(c);
     return acc;
   }, {} as Record<string, CommentEntry[]>);
 }
 
+const formatDateLabel = (date: string | null | undefined, formatter = fullDateFormatter) => {
+  if (!date || !isoDatePattern.test(date)) return '—';
+  return formatter.format(new Date(`${date}T00:00:00`));
+};
+
 function CommentsPage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, date: routeDate } = useParams<{ projectId: string; date?: string }>();
   const navigate = useNavigate();
-  const pid = projectId ? parseInt(projectId) : NaN;
+  const pid = projectId ? Number.parseInt(projectId, 10) : NaN;
 
   const { projects, currentProject, schedules, fetchProjects, fetchSchedules, selectProject } = useScheduleStore();
-  const { comments, fetchComments, upsertComment, connectSocket, disconnectSocket } = useCommentStore();
+  const {
+    comments,
+    commentPages,
+    latestDate,
+    loading,
+    error,
+    fetchCommentPages,
+    fetchComments,
+    createCommentPage,
+    deleteCommentPage,
+    upsertComment,
+    connectSocket,
+    disconnectSocket,
+  } = useCommentStore();
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [ownerFilter, setOwnerFilter] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const timersRef = useRef<Map<string, any>>(new Map());
   const [fixedLeft, setFixedLeft] = useState<string[] | null>(null);
   const [fixedRight, setFixedRight] = useState<string[] | null>(null);
   const [OVERALL_KEY, setOverallKey] = useState<string>('__OVERALL__');
   const [overallLabel, setOverallLabel] = useState<string>('全体報告');
+  const [newPageDate, setNewPageDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [localMessage, setLocalMessage] = useState<string | null>(null);
+
+  const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const selectedDate = routeDate && isoDatePattern.test(routeDate) ? routeDate : '';
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   useEffect(() => {
     if (!projectId || Number.isNaN(pid)) {
       navigate('/projects');
       return;
     }
+    let disposed = false;
     const load = async () => {
       await fetchProjects();
       await fetchSchedules(pid);
-      await fetchComments(pid);
-      connectSocket();
-      // 固定セクションの取得
+      try {
+        await fetchCommentPages(pid);
+      } catch (e) {
+        if (!disposed) console.error('Failed to load comment pages', e);
+      }
       try {
         const res = await fetch('/progress-manager/api/comments/sections');
         if (res.ok) {
@@ -54,27 +85,74 @@ function CommentsPage() {
       } catch (e) {
         console.warn('sections load failed', e);
       }
-      // サーバー未設定時は固定デフォルトを適用
-      setFixedLeft(prev => prev ?? ['全体報告','デザイン','メカ','ハード','ゲージ','プロマネ'].filter(x => x !== '全体報告'));
-      setFixedRight(prev => prev ?? ['企画','画像','出玉','サブ','メイン']);
+      setFixedLeft(prev => prev ?? ['全体報告', 'デザイン', 'メカ', 'ハード', 'ゲージ', 'プロマネ'].filter(x => x !== '全体報告'));
+      setFixedRight(prev => prev ?? ['企画', '画像', '出玉', 'サブ', 'メイン']);
     };
     load();
-    return () => disconnectSocket();
-  }, [projectId]);
+    return () => {
+      disposed = true;
+      disconnectSocket();
+    };
+  }, [projectId, pid, fetchProjects, fetchSchedules, fetchCommentPages, disconnectSocket, navigate]);
 
   useEffect(() => {
     if (projects.length > 0 && pid) {
       const proj = projects.find(p => p.id === pid);
       if (proj && (!currentProject || currentProject.id !== proj.id)) selectProject(proj);
     }
-  }, [projects, pid]);
+  }, [projects, pid, currentProject, selectProject]);
 
-  // 固定があれば左右のセクションをその順で表示
+  useEffect(() => {
+    if (selectedDate) setNewPageDate(selectedDate);
+    else setNewPageDate(today);
+  }, [selectedDate, today]);
+
+  useEffect(() => {
+    if (!projectId || Number.isNaN(pid)) return;
+    if (commentPages.length === 0) {
+      if (selectedDate) navigate(`/comments/${projectId}`, { replace: true });
+      return;
+    }
+    const latest = commentPages[0]?.comment_date;
+    if (!selectedDate) {
+      if (latest) navigate(`/comments/${projectId}/${latest}`, { replace: true });
+      return;
+    }
+    const exists = commentPages.some(p => p.comment_date === selectedDate);
+    if (!exists && latest) {
+      navigate(`/comments/${projectId}/${latest}`, { replace: true });
+    }
+  }, [commentPages, projectId, pid, selectedDate, navigate]);
+
+  useEffect(() => {
+    if (!projectId || Number.isNaN(pid) || !selectedDate) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        await fetchComments(pid, selectedDate);
+        if (!cancelled) setLocalMessage(null);
+      } catch (e) {
+        if (cancelled) return;
+        const status = (e as AxiosError)?.response?.status;
+        if (status === 404) {
+          setLocalMessage('指定した日付のコメントページが存在しません。新規作成してください。');
+        } else {
+          setLocalMessage('コメントの取得に失敗しました。');
+        }
+      }
+    };
+    load();
+    connectSocket(pid, selectedDate);
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, pid, selectedDate, fetchComments, connectSocket]);
+
   const ownersLeft = useMemo(() => {
     let list: string[] = fixedLeft ?? [];
     if (!list.length) {
-      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ja'));
-      list = dyn.slice(0, Math.ceil(dyn.length/2));
+      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
+      list = dyn.slice(0, Math.ceil(dyn.length / 2));
     }
     if (ownerFilter.trim()) list = list.filter(o => o.includes(ownerFilter.trim()));
     return list;
@@ -83,8 +161,8 @@ function CommentsPage() {
   const ownersRight = useMemo(() => {
     let list: string[] = fixedRight ?? [];
     if (!list.length) {
-      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'ja'));
-      list = dyn.slice(Math.ceil(dyn.length/2));
+      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
+      list = dyn.slice(Math.ceil(dyn.length / 2));
     }
     if (ownerFilter.trim()) list = list.filter(o => o.includes(ownerFilter.trim()));
     return list;
@@ -92,31 +170,15 @@ function CommentsPage() {
 
   const commentsByOwner = useMemo(() => groupByOwner(comments), [comments]);
 
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
-  // 直近の日付一覧（コメント履歴から抽出）
-  const recentDates = useMemo(() => {
-    const ds = new Set<string>(comments.map(c => c.comment_date));
-    ds.add(today);
-    return Array.from(ds).sort((a,b) => (a < b ? 1 : -1)).slice(0, 14);
-  }, [comments, today]);
-
-  // コメントページ上部に表示するマイルストーン（進捗表の「マイルストーン」カテゴリ）
-  const milestoneBoardItems = useMemo(() => {
-    return schedules
-      .filter(s => (s.category || '').trim() === 'マイルストーン')
-      .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
-  }, [schedules]);
-
-  // overallRange は不要になったが将来の補助に残す場合はここで維持可
-
-  // マイルストーン: 基準日、最小開始、最大終了
   const milestone = useMemo(() => {
-    const dates = schedules.reduce((acc, s) => {
-      if (s.start_date) acc.minStart = acc.minStart ? (acc.minStart < s.start_date ? acc.minStart : s.start_date) : s.start_date;
-      if (s.end_date) acc.maxEnd = acc.maxEnd ? (acc.maxEnd > s.end_date ? acc.maxEnd : s.end_date) : s.end_date;
-      return acc;
-    }, { minStart: undefined as string | undefined, maxEnd: undefined as string | undefined });
+    const dates = schedules.reduce(
+      (acc, s) => {
+        if (s.start_date) acc.minStart = acc.minStart ? (acc.minStart < s.start_date ? acc.minStart : s.start_date) : s.start_date;
+        if (s.end_date) acc.maxEnd = acc.maxEnd ? (acc.maxEnd > s.end_date ? acc.maxEnd : s.end_date) : s.end_date;
+        return acc;
+      },
+      { minStart: undefined as string | undefined, maxEnd: undefined as string | undefined }
+    );
     return {
       base: currentProject?.base_date,
       start: dates.minStart,
@@ -125,40 +187,87 @@ function CommentsPage() {
   }, [schedules, currentProject]);
 
   const keyOf = (owner: string, date: string) => `${owner}|${date}`;
+  const canEdit = Boolean(selectedDate && !Number.isNaN(pid));
 
   const handleChange = (owner: string, value: string) => {
+    if (!selectedDate) return;
     setDrafts(prev => ({ ...prev, [keyOf(owner, selectedDate)]: value }));
   };
 
-  // 入力完了で自動保存（1秒デバウンス）
   const scheduleSave = (owner: string, value: string) => {
+    if (!selectedDate || Number.isNaN(pid)) return;
     const tkey = keyOf(owner, selectedDate);
     const map = timersRef.current;
-    if (map.has(tkey)) clearTimeout(map.get(tkey));
+    const existing = map.get(tkey);
+    if (existing) clearTimeout(existing);
     setSaving(prev => ({ ...prev, [tkey]: true }));
-    const t = setTimeout(async () => {
-      if (!Number.isNaN(pid)) {
+    const timeoutId = setTimeout(async () => {
+      try {
         await upsertComment({ project_id: pid, owner, body: value, comment_date: selectedDate });
+      } finally {
+        setSaving(prev => ({ ...prev, [tkey]: false }));
       }
-      setSaving(prev => ({ ...prev, [tkey]: false }));
     }, 1000);
-    map.set(tkey, t);
+    map.set(tkey, timeoutId);
   };
 
   const getValueForSelected = (owner: string) => {
+    if (!selectedDate) return '';
+    const key = keyOf(owner, selectedDate);
+    const draft = drafts[key];
+    if (typeof draft === 'string') return draft;
     const found = commentsByOwner[owner]?.find(c => c.comment_date === selectedDate);
-    return drafts[keyOf(owner, selectedDate)] ?? found?.body ?? '';
+    return found?.body ?? '';
   };
+
+  const handleSelectDate = (value: string) => {
+    if (!projectId || !isoDatePattern.test(value)) return;
+    navigate(`/comments/${projectId}/${value}`);
+  };
+
+  const handleCreatePage = async () => {
+    if (!projectId || Number.isNaN(pid) || !isoDatePattern.test(newPageDate)) {
+      setLocalMessage('日付を正しく選択してください。');
+      return;
+    }
+    try {
+      await createCommentPage(pid, newPageDate);
+      setLocalMessage(null);
+      navigate(`/comments/${projectId}/${newPageDate}`);
+    } catch (e) {
+      const status = (e as AxiosError)?.response?.status;
+      if (status === 409) {
+        setLocalMessage('既に同じ日付のコメントページが存在します。');
+      } else {
+        setLocalMessage('コメントページの作成に失敗しました。');
+      }
+    }
+  };
+
+  const handleDeletePage = async () => {
+    if (!projectId || Number.isNaN(pid) || !selectedDate) return;
+    const confirmed = window.confirm(`${formatDateLabel(selectedDate)}版のコメントページを削除します。よろしいですか？`);
+    if (!confirmed) return;
+    try {
+      await deleteCommentPage(pid, selectedDate);
+      setLocalMessage('コメントページを削除しました。');
+    } catch (e) {
+      console.error('delete comment page error', e);
+      setLocalMessage('コメントページの削除に失敗しました。');
+    }
+  };
+
+  const pageDates = useMemo(() => commentPages.map(p => p.comment_date), [commentPages]);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">{currentProject?.name || `プロジェクト ${projectId}`}</h1>
-          <div className="flex gap-3 text-sm text-gray-700 mt-1">
-            <span className="bg-blue-50 px-2 py-0.5 rounded">基準日: {milestone.base ? new Date(milestone.base).toLocaleDateString('ja-JP') : '—'}</span>
-            <span className="bg-gray-50 px-2 py-0.5 rounded">予定開始: {milestone.start ? new Date(milestone.start).toLocaleDateString('ja-JP') : '—'}</span>
-            <span className="bg-gray-50 px-2 py-0.5 rounded">予定完了: {milestone.end ? new Date(milestone.end).toLocaleDateString('ja-JP') : '—'}</span>
+          <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-700">
+            <span className="bg-blue-50 px-2 py-0.5 rounded">基準日: {formatDateLabel(milestone.base)}</span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">予定開始: {formatDateLabel(milestone.start)}</span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">予定完了: {formatDateLabel(milestone.end)}</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -167,105 +276,145 @@ function CommentsPage() {
         </div>
       </div>
 
-      {/* 日付切替＆フィルタ */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-700">対象日</label>
-          <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
+          <span>最新進捗日: {formatDateLabel(latestDate, shortDateFormatter)}</span>
+          {selectedDate && latestDate && selectedDate !== latestDate && (
+            <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">表示中: {formatDateLabel(selectedDate, shortDateFormatter)}</span>
+          )}
+          {loading && <span className="text-xs text-blue-600">読み込み中…</span>}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-700">最近</span>
-          <div className="flex flex-wrap gap-1">
-            {recentDates.map(d => (
-              <button key={d} onClick={() => setSelectedDate(d)} className={`px-2 py-0.5 text-xs rounded-md transition-colors ${d===selectedDate? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
-                {new Date(d).toLocaleDateString('ja-JP')}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {pageDates.length === 0 ? (
+            <span className="text-sm text-gray-600">まだコメントページがありません。日付を選択して作成してください。</span>
+          ) : (
+            pageDates.map(date => (
+              <button
+                key={date}
+                onClick={() => handleSelectDate(date)}
+                className={`px-3 py-1 text-sm rounded-md border transition-colors ${date === selectedDate ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
+              >
+                {formatDateLabel(date, shortDateFormatter)}
               </button>
-            ))}
+            ))
+          )}
+        </div>
+        <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={newPageDate}
+              max="9999-12-31"
+              onChange={(e) => setNewPageDate(e.target.value)}
+              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleCreatePage}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md text-sm transition-colors"
+            >
+              {`${formatDateLabel(newPageDate, shortDateFormatter)}バージョンのコメントページを新規作成`}
+            </button>
+          </div>
+          <div className="flex items-center gap-2 md:ml-auto">
+            <label className="text-sm text-gray-700">担当フィルタ</label>
+            <input
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+              placeholder="例: 佐藤"
+              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <label className="text-sm text-gray-700">担当フィルタ</label>
-          <input value={ownerFilter} onChange={e=>setOwnerFilter(e.target.value)} placeholder="例: 佐藤" className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <div className="mt-3 flex flex-wrap gap-2">
+          {selectedDate && (
+            <button
+              onClick={handleDeletePage}
+              className="text-sm text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md border border-red-200 transition-colors"
+            >
+              {`${formatDateLabel(selectedDate, shortDateFormatter)}バージョンを削除`}
+            </button>
+          )}
         </div>
+        {(localMessage || error) && (
+          <div className="mt-3 text-sm text-red-600">{localMessage || error}</div>
+        )}
       </div>
 
-
-      {/* マイルストーン（コメント画面上部） */}
-      {milestoneBoardItems.length > 0 && (
-        <MilestoneBoard items={milestoneBoardItems} />
+      {selectedDate ? (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-700">対象日</label>
+            <input
+              type="date"
+              value={selectedDate}
+              max="9999-12-31"
+              onChange={(e) => handleSelectDate(e.target.value)}
+              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+          日付ページを選択または作成するとコメントを編集できます。
+        </div>
       )}
 
-      {/* 全体報告 */}
-      <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md hover:shadow-lg transition-shadow p-5 border border-blue-200">
+      {schedules.some((s: Schedule) => (s.category || '').trim() === 'マイルストーン') && (
+        <MilestoneBoard
+          items={schedules
+            .filter(s => (s.category || '').trim() === 'マイルストーン')
+            .map(s => ({ id: s.id, name: s.item, date: s.start_date }))}
+        />
+      )}
+
+      <div className="mb-6 mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md hover:shadow-lg transition-shadow p-5 border border-blue-200">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-bold text-blue-900">{overallLabel}</h2>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">{new Date(selectedDate).toLocaleDateString('ja-JP')} のコメント</span>
-            {saving[keyOf(OVERALL_KEY, selectedDate)] && (
+            <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
+            {selectedDate && saving[keyOf(OVERALL_KEY, selectedDate)] && (
               <span className="text-xs text-blue-600">保存中…</span>
             )}
           </div>
         </div>
         <textarea
-          className="w-full min-h-[160px] border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full min-h-[160px] border border-gray-300 rounded-md p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
           placeholder="全体の進捗・課題・リスク・支援要請などを記入"
           value={getValueForSelected(OVERALL_KEY)}
-          onChange={(e) => { handleChange(OVERALL_KEY, e.target.value); scheduleSave(OVERALL_KEY, e.target.value); }}
+          onChange={(e) => {
+            handleChange(OVERALL_KEY, e.target.value);
+            scheduleSave(OVERALL_KEY, e.target.value);
+          }}
+          disabled={!canEdit}
         />
-        {commentsByOwner[OVERALL_KEY]?.filter(c => c.comment_date !== selectedDate).length ? (
-          <div className="mt-3">
-            <div className="text-sm text-gray-600 mb-1">履歴</div>
-            <div className="space-y-2 max-h-48 overflow-auto">
-              {commentsByOwner[OVERALL_KEY]
-                .filter(c => c.comment_date !== selectedDate)
-                .map(c => (
-                  <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded p-2">
-                    <div className="text-xs text-gray-500 mb-1">{new Date(c.comment_date).toLocaleDateString('ja-JP')} のコメント</div>
-                    <pre className="whitespace-pre-wrap text-sm text-gray-800">{c.body}</pre>
-                  </div>
-                ))}
-            </div>
-          </div>
-        ) : null}
       </div>
 
       {(ownersLeft.length === 0 && ownersRight.length === 0) ? (
         <div className="text-gray-600">担当が未登録です。進捗管理表で担当を設定してください。</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-6">
             {ownersLeft.map(owner => (
               <div key={`L-${owner}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{new Date(selectedDate).toLocaleDateString('ja-JP')} のコメント</span>
-                    {saving[keyOf(owner, selectedDate)] && (
+                    <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
+                    {selectedDate && saving[keyOf(owner, selectedDate)] && (
                       <span className="text-xs text-blue-600">保存中…</span>
                     )}
                   </div>
                 </div>
                 <textarea
-                  className="w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="本日の進捗・課題・所要支援などを記入"
                   value={getValueForSelected(owner)}
-                  onChange={(e) => { handleChange(owner, e.target.value); scheduleSave(owner, e.target.value); }}
+                  onChange={(e) => {
+                    handleChange(owner, e.target.value);
+                    scheduleSave(owner, e.target.value);
+                  }}
+                  disabled={!canEdit}
                 />
-                {commentsByOwner[owner]?.filter(c => c.comment_date !== selectedDate).length ? (
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-600 mb-1">履歴</div>
-                    <div className="space-y-2 max-h-48 overflow-auto">
-                      {commentsByOwner[owner]
-                        .filter(c => c.comment_date !== selectedDate)
-                        .map(c => (
-                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded-md p-2">
-                            <div className="text-xs text-gray-500 mb-1">{new Date(c.comment_date).toLocaleDateString('ja-JP')} のコメント</div>
-                            <pre className="whitespace-pre-wrap text-sm text-gray-800">{c.body}</pre>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ))}
           </div>
@@ -275,33 +424,22 @@ function CommentsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{new Date(selectedDate).toLocaleDateString('ja-JP')} のコメント</span>
-                    {saving[keyOf(owner, selectedDate)] && (
+                    <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
+                    {selectedDate && saving[keyOf(owner, selectedDate)] && (
                       <span className="text-xs text-blue-600">保存中…</span>
                     )}
                   </div>
                 </div>
                 <textarea
-                  className="w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="本日の進捗・課題・所要支援などを記入"
                   value={getValueForSelected(owner)}
-                  onChange={(e) => { handleChange(owner, e.target.value); scheduleSave(owner, e.target.value); }}
+                  onChange={(e) => {
+                    handleChange(owner, e.target.value);
+                    scheduleSave(owner, e.target.value);
+                  }}
+                  disabled={!canEdit}
                 />
-                {commentsByOwner[owner]?.filter(c => c.comment_date !== selectedDate).length ? (
-                  <div className="mt-3">
-                    <div className="text-sm text-gray-600 mb-1">履歴</div>
-                    <div className="space-y-2 max-h-48 overflow-auto">
-                      {commentsByOwner[owner]
-                        .filter(c => c.comment_date !== selectedDate)
-                        .map(c => (
-                          <div key={`${c.owner}-${c.comment_date}-${c.id}`} className="border border-gray-200 rounded-md p-2">
-                            <div className="text-xs text-gray-500 mb-1">{new Date(c.comment_date).toLocaleDateString('ja-JP')} のコメント</div>
-                            <pre className="whitespace-pre-wrap text-sm text-gray-800">{c.body}</pre>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                ) : null}
               </div>
             ))}
           </div>
