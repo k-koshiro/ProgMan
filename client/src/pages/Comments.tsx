@@ -3,7 +3,7 @@ import type { AxiosError } from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useCommentStore } from '../store/useCommentStore';
-import type { CommentEntry, Schedule, ProgressStatus } from '../types';
+import type { CommentEntry, ProgressStatus } from '../types';
 import MilestoneBoard from '../components/MilestoneBoard';
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -349,23 +349,16 @@ function CommentsPage() {
 
   const pageDates = useMemo(() => commentPages.map(p => p.comment_date), [commentPages]);
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">{currentProject?.name || `プロジェクト ${projectId}`}</h1>
-          <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-700">
-            <span className="bg-blue-50 px-2 py-0.5 rounded">基準日: {formatDateLabel(milestone.base)}</span>
-            <span className="bg-gray-50 px-2 py-0.5 rounded">予定開始: {formatDateLabel(milestone.start)}</span>
-            <span className="bg-gray-50 px-2 py-0.5 rounded">予定完了: {formatDateLabel(milestone.end)}</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button onClick={() => navigate(`/schedule/${projectId}`)} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">進捗管理表へ</button>
-          <button onClick={() => navigate('/projects')} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors">製番一覧へ</button>
-        </div>
-      </div>
+  const milestoneBoardSection = useMemo(() => {
+    const milestoneItems = schedules
+      .filter(s => (s.category || '').trim() === 'マイルストーン')
+      .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
+    if (milestoneItems.length === 0) return null;
+    return <MilestoneBoard items={milestoneItems} />;
+  }, [schedules]);
 
+  const commentControlsSection = (
+    <>
       <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
           <span>最新進捗日: {formatDateLabel(latestDate, shortDateFormatter)}</span>
@@ -448,14 +441,29 @@ function CommentsPage() {
           日付ページを選択または作成するとコメントを編集できます。
         </div>
       )}
+    </>
+  );
 
-      {schedules.some((s: Schedule) => (s.category || '').trim() === 'マイルストーン') && (
-        <MilestoneBoard
-          items={schedules
-            .filter(s => (s.category || '').trim() === 'マイルストーン')
-            .map(s => ({ id: s.id, name: s.item, date: s.start_date }))}
-        />
-      )}
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{currentProject?.name || `プロジェクト ${projectId}`}</h1>
+          <div className="mt-1 flex flex-wrap gap-3 text-sm text-gray-700">
+            <span className="bg-blue-50 px-2 py-0.5 rounded">基準日: {formatDateLabel(milestone.base)}</span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">予定開始: {formatDateLabel(milestone.start)}</span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">予定完了: {formatDateLabel(milestone.end)}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => navigate(`/schedule/${projectId}`)} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md transition-colors">進捗管理表へ</button>
+          <button onClick={() => navigate('/projects')} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors">製番一覧へ</button>
+        </div>
+      </div>
+
+      {milestoneBoardSection}
+
+      {commentControlsSection}
 
       <div className="mb-6 mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md hover:shadow-lg transition-shadow p-5 border border-blue-200">
         <div className="flex items-center justify-between mb-2">
