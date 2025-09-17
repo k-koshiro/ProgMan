@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import type { CommentEntry, CommentPage } from '../types';
+import type { CommentEntry, CommentPage, CategoryProgress, ProgressStatus } from '../types';
 
 interface CommentStore {
   comments: CommentEntry[];
   commentPages: CommentPage[];
+  categoryProgress: CategoryProgress[];
   latestDate: string | null;
   activeDate: string | null;
   currentProjectId: number | null;
@@ -18,12 +19,15 @@ interface CommentStore {
   createCommentPage: (projectId: number, date: string) => Promise<CommentPage>;
   deleteCommentPage: (projectId: number, date: string) => Promise<void>;
   upsertComment: (input: { project_id: number; owner: string; body: string; comment_date: string }) => Promise<void>;
+  fetchCategoryProgress: (projectId: number, date: string) => Promise<void>;
+  updateCategoryProgress: (projectId: number, category: string, date: string, status: ProgressStatus) => Promise<void>;
   connectSocket: (projectId: number, date: string) => void;
   joinCommentPage: (projectId: number, date: string) => void;
   disconnectSocket: () => void;
 }
 
 type CommentsUpdatedPayload = { date: string; comments: CommentEntry[] };
+type ProgressUpdatedPayload = { date: string; progressList: CategoryProgress[] };
 type CommentPageEventPayload = { projectId: number; comment_date: string };
 
 const sortPagesDesc = (pages: CommentPage[]) =>
@@ -32,6 +36,7 @@ const sortPagesDesc = (pages: CommentPage[]) =>
 export const useCommentStore = create<CommentStore>((set, get) => ({
   comments: [],
   commentPages: [],
+  categoryProgress: [],
   latestDate: null,
   activeDate: null,
   currentProjectId: null,
@@ -125,6 +130,52 @@ export const useCommentStore = create<CommentStore>((set, get) => ({
     }
   },
 
+  fetchCategoryProgress: async (projectId: number, date: string) => {
+    try {
+      const res = await axios.get(`/progress-manager/api/comments/${projectId}/progress`, {
+        params: { date }
+      });
+      const { progressList } = res.data as { progressList: CategoryProgress[]; date: string };
+      set({ categoryProgress: progressList });
+    } catch (e) {
+      console.error('fetchCategoryProgress error', e);
+      set({ error: 'カテゴリ進捗状態の取得に失敗しました' });
+      throw e;
+    }
+  },
+
+  updateCategoryProgress: async (projectId: number, category: string, date: string, status: ProgressStatus) => {
+    try {
+      await axios.put(`/progress-manager/api/comments/${projectId}/progress`, {
+        category,
+        progress_date: date,
+        status
+      });
+      set(state => {
+        const idx = state.categoryProgress.findIndex(
+          p => p.project_id === projectId && p.category === category && p.progress_date === date
+        );
+        if (idx >= 0) {
+          const next = [...state.categoryProgress];
+          next[idx] = { ...next[idx], status };
+          return { categoryProgress: next };
+        }
+        return {
+          categoryProgress: [...state.categoryProgress, {
+            project_id: projectId,
+            category,
+            progress_date: date,
+            status
+          }]
+        };
+      });
+    } catch (e) {
+      console.error('updateCategoryProgress error', e);
+      set({ error: 'カテゴリ進捗状態の更新に失敗しました' });
+      throw e;
+    }
+  },
+
   connectSocket: (projectId: number, date: string) => {
     const currentSocket = get().socket;
     if (currentSocket) {
@@ -143,6 +194,15 @@ export const useCommentStore = create<CommentStore>((set, get) => ({
           return state;
         }
         return { comments: payload.comments, activeDate: payload.date };
+      });
+    });
+    socket.on('progress-updated', (payload: ProgressUpdatedPayload) => {
+      set(state => {
+        if (!payload?.date) return state;
+        if (state.activeDate && state.activeDate !== payload.date) {
+          return state;
+        }
+        return { categoryProgress: payload.progressList };
       });
     });
     socket.on('comment-page-created', (payload: CommentPageEventPayload) => {

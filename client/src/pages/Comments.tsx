@@ -3,7 +3,7 @@ import type { AxiosError } from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useCommentStore } from '../store/useCommentStore';
-import type { CommentEntry, Schedule } from '../types';
+import type { CommentEntry, Schedule, ProgressStatus } from '../types';
 import MilestoneBoard from '../components/MilestoneBoard';
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -23,6 +23,19 @@ const formatDateLabel = (date: string | null | undefined, formatter = fullDateFo
   return formatter.format(new Date(`${date}T00:00:00`));
 };
 
+// 進捗状態の設定
+const progressOptions: Array<{ value: ProgressStatus; label: string; bgColor: string; borderColor: string; textColor: string }> = [
+  { value: 'smooth', label: '順調', bgColor: 'bg-cyan-100', borderColor: 'border-cyan-400', textColor: 'text-cyan-900' },
+  { value: 'caution', label: '注意', bgColor: 'bg-yellow-100', borderColor: 'border-yellow-400', textColor: 'text-yellow-900' },
+  { value: 'danger', label: '危険', bgColor: 'bg-red-100', borderColor: 'border-red-400', textColor: 'text-red-900' },
+  { value: 'idle', label: '無作業', bgColor: 'bg-gray-50', borderColor: 'border-gray-300', textColor: 'text-gray-700' },
+];
+
+const getProgressStyle = (status: ProgressStatus | undefined) => {
+  const option = progressOptions.find(opt => opt.value === (status || 'idle'));
+  return option || progressOptions[3]; // デフォルトは無作業
+};
+
 function CommentsPage() {
   const { projectId, date: routeDate } = useParams<{ projectId: string; date?: string }>();
   const navigate = useNavigate();
@@ -32,11 +45,14 @@ function CommentsPage() {
   const {
     comments,
     commentPages,
+    categoryProgress,
     latestDate,
     loading,
     error,
     fetchCommentPages,
     fetchComments,
+    fetchCategoryProgress,
+    updateCategoryProgress,
     createCommentPage,
     deleteCommentPage,
     upsertComment,
@@ -130,6 +146,7 @@ function CommentsPage() {
     const load = async () => {
       try {
         await fetchComments(pid, selectedDate);
+        await fetchCategoryProgress(pid, selectedDate);
         if (!cancelled) setLocalMessage(null);
       } catch (e) {
         if (cancelled) return;
@@ -146,7 +163,7 @@ function CommentsPage() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, pid, selectedDate, fetchComments, connectSocket]);
+  }, [projectId, pid, selectedDate, fetchComments, fetchCategoryProgress, connectSocket]);
 
   const commentsByOwner = useMemo(() => groupByOwner(comments), [comments]);
 
@@ -313,6 +330,23 @@ function CommentsPage() {
     }
   };
 
+  const handleProgressChange = async (category: string, status: ProgressStatus) => {
+    if (!selectedDate || Number.isNaN(pid)) return;
+    try {
+      await updateCategoryProgress(pid, category, selectedDate, status);
+    } catch (e) {
+      console.error('progress update error', e);
+    }
+  };
+
+  const getCategoryProgress = (category: string): ProgressStatus => {
+    if (!selectedDate) return 'idle';
+    const progress = categoryProgress.find(
+      p => p.category === category && p.progress_date === selectedDate
+    );
+    return progress?.status || 'idle';
+  };
+
   const pageDates = useMemo(() => commentPages.map(p => p.comment_date), [commentPages]);
 
   return (
@@ -453,15 +487,29 @@ function CommentsPage() {
             {sectionsLeft.map(section => {
               const ownerNames = categoryOwnersMap[section];
               const ownerLabel = ownerNames && ownerNames.length > 0 ? ownerNames.join('、') : null;
+              const progressStatus = getCategoryProgress(section);
+              const progressStyle = getProgressStyle(progressStatus);
               return (
-                <div key={`L-${section}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
+                <div key={`L-${section}`} className={`${progressStyle.bgColor} rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border-2 ${progressStyle.borderColor}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-lg font-semibold text-gray-800">
-                      {section}
-                      <span className="ml-2 text-sm font-normal text-gray-600">
-                        （担当: {ownerLabel ?? '未設定'}）
-                      </span>
-                    </h2>
+                    <div className="flex-1">
+                      <h2 className={`text-lg font-semibold ${progressStyle.textColor}`}>
+                        {section}
+                        <span className="ml-2 text-sm font-normal opacity-75">
+                          （担当: {ownerLabel ?? '未設定'}）
+                        </span>
+                      </h2>
+                    </div>
+                    <select
+                      value={progressStatus}
+                      onChange={(e) => handleProgressChange(section, e.target.value as ProgressStatus)}
+                      className={`ml-2 px-2 py-1 text-sm rounded-md border ${progressStyle.borderColor} ${progressStyle.bgColor} ${progressStyle.textColor} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      disabled={!canEdit}
+                    >
+                      {progressOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
                       {selectedDate && saving[keyOf(section, selectedDate)] && (
@@ -487,15 +535,29 @@ function CommentsPage() {
             {sectionsRight.map(section => {
               const ownerNames = categoryOwnersMap[section];
               const ownerLabel = ownerNames && ownerNames.length > 0 ? ownerNames.join('、') : null;
+              const progressStatus = getCategoryProgress(section);
+              const progressStyle = getProgressStyle(progressStatus);
               return (
-                <div key={`R-${section}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
+                <div key={`R-${section}`} className={`${progressStyle.bgColor} rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 border-2 ${progressStyle.borderColor}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-lg font-semibold text-gray-800">
-                      {section}
-                      <span className="ml-2 text-sm font-normal text-gray-600">
-                        （担当: {ownerLabel ?? '未設定'}）
-                      </span>
-                    </h2>
+                    <div className="flex-1">
+                      <h2 className={`text-lg font-semibold ${progressStyle.textColor}`}>
+                        {section}
+                        <span className="ml-2 text-sm font-normal opacity-75">
+                          （担当: {ownerLabel ?? '未設定'}）
+                        </span>
+                      </h2>
+                    </div>
+                    <select
+                      value={progressStatus}
+                      onChange={(e) => handleProgressChange(section, e.target.value as ProgressStatus)}
+                      className={`ml-2 px-2 py-1 text-sm rounded-md border ${progressStyle.borderColor} ${progressStyle.bgColor} ${progressStyle.textColor} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      disabled={!canEdit}
+                    >
+                      {progressOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
                       {selectedDate && saving[keyOf(section, selectedDate)] && (

@@ -37,3 +37,14 @@ export interface CommentPage {
   comment_date: string;
   created_at?: string;
 }
+
+export type ProgressStatus = 'smooth' | 'caution' | 'danger' | 'idle';
+
+export interface CategoryProgress {
+  id?: number;
+  project_id: number;
+  category: string;
+  progress_date: string; // yyyy-MM-dd
+  status: ProgressStatus;
+  updated_at?: string;
+}

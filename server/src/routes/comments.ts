@@ -8,6 +8,8 @@ import {
   getCommentsByProjectAndDate,
   getLatestCommentPageDate,
   upsertComment,
+  getCategoryProgressByProjectAndDate,
+  upsertCategoryProgress,
 } from '../db/queries.js';
 
 const router = express.Router();
@@ -162,6 +164,65 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Error upserting comment:', error);
     res.status(500).json({ error: 'Failed to upsert comment' });
+  }
+});
+
+// カテゴリ進捗状態の取得
+router.get('/:projectId/progress', async (req, res) => {
+  try {
+    const projectId = parseProjectId(req.params.projectId);
+    if (Number.isNaN(projectId)) {
+      res.status(400).json({ error: 'Invalid projectId' });
+      return;
+    }
+    const progressDate = ensureValidDate(
+      typeof req.query.date === 'string' ? req.query.date : undefined
+    ) || new Date().toISOString().slice(0, 10);
+
+    const progressList = await getCategoryProgressByProjectAndDate(projectId, progressDate);
+    res.json({ progressList, date: progressDate });
+  } catch (error) {
+    console.error('Error fetching category progress:', error);
+    res.status(500).json({ error: 'Failed to fetch category progress' });
+  }
+});
+
+// カテゴリ進捗状態の更新
+router.put('/:projectId/progress', async (req, res) => {
+  try {
+    const projectId = parseProjectId(req.params.projectId);
+    if (Number.isNaN(projectId)) {
+      res.status(400).json({ error: 'Invalid projectId' });
+      return;
+    }
+    const { category, progress_date, status } = req.body || {};
+    const dateStr = ensureValidDate(progress_date) || new Date().toISOString().slice(0, 10);
+
+    if (!category || !status) {
+      res.status(400).json({ error: 'category and status are required' });
+      return;
+    }
+
+    if (!['smooth', 'caution', 'danger', 'idle'].includes(status)) {
+      res.status(400).json({ error: 'Invalid status value' });
+      return;
+    }
+
+    await upsertCategoryProgress({
+      project_id: projectId,
+      category,
+      progress_date: dateStr,
+      status
+    });
+
+    const progressList = await getCategoryProgressByProjectAndDate(projectId, dateStr);
+    const io = req.app.get('io') as Server | undefined;
+    io?.to(`project-${projectId}-${dateStr}`).emit('progress-updated', { date: dateStr, progressList });
+
+    res.json({ success: true, progress_date: dateStr });
+  } catch (error) {
+    console.error('Error updating category progress:', error);
+    res.status(500).json({ error: 'Failed to update category progress' });
   }
 });
 

@@ -87,19 +87,38 @@ export const initDatabase = () => {
               reject(cErr);
               return;
             }
-            // 既存コメントからページ情報を補完
-            db.run(
-              `INSERT OR IGNORE INTO comment_pages (project_id, comment_date)
-               SELECT project_id, comment_date FROM comments GROUP BY project_id, comment_date`,
-              (seedErr) => {
-                if (seedErr) {
-                  console.error('Error seeding comment_pages:', seedErr);
-                  reject(seedErr);
-                  return;
-                }
-                resolve();
+            // category_progress テーブル作成（カテゴリ×日付で進捗状態管理）
+            db.run(`
+              CREATE TABLE IF NOT EXISTS category_progress (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                progress_date DATE NOT NULL,
+                status TEXT NOT NULL CHECK(status IN ('smooth', 'caution', 'danger', 'idle')),
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(project_id, category, progress_date),
+                FOREIGN KEY (project_id) REFERENCES projects(id)
+              )
+            `, (cpErr) => {
+              if (cpErr) {
+                console.error('Error creating category_progress table:', cpErr);
+                reject(cpErr);
+                return;
               }
-            );
+              // 既存コメントからページ情報を補完
+              db.run(
+                `INSERT OR IGNORE INTO comment_pages (project_id, comment_date)
+                 SELECT project_id, comment_date FROM comments GROUP BY project_id, comment_date`,
+                (seedErr) => {
+                  if (seedErr) {
+                    console.error('Error seeding comment_pages:', seedErr);
+                    reject(seedErr);
+                    return;
+                  }
+                  resolve();
+                }
+              );
+            });
           });
         });
       });

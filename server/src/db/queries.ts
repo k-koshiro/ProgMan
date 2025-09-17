@@ -1,5 +1,5 @@
 import { db } from './init.js';
-import { Project, Schedule, CommentEntry, CommentPage } from '../types/index.js';
+import { Project, Schedule, CommentEntry, CommentPage, CategoryProgress, ProgressStatus } from '../types/index.js';
 import { format, addDays, differenceInDays } from 'date-fns';
 import { initialCategories } from '../data/initialData.js';
 import { scheduleTemplates } from '../data/scheduleTemplate.js';
@@ -473,6 +473,48 @@ export const upsertComment = (entry: Omit<CommentEntry, 'id' | 'updated_at'>): P
           if (err) reject(err);
           else resolve();
         });
+      }
+    );
+  });
+};
+
+// カテゴリ進捗状態の取得（プロジェクトと日付で取得）
+export const getCategoryProgressByProjectAndDate = (
+  projectId: number,
+  progressDate: string
+): Promise<CategoryProgress[]> => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM category_progress WHERE project_id = ? AND progress_date = ?',
+      [projectId, progressDate],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve((rows as CategoryProgress[]) || []);
+      }
+    );
+  });
+};
+
+// カテゴリ進捗状態の更新または挿入
+export const upsertCategoryProgress = (progress: {
+  project_id: number;
+  category: string;
+  progress_date: string;
+  status: ProgressStatus;
+}): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const sql = `
+      INSERT INTO category_progress (project_id, category, progress_date, status)
+      VALUES (?, ?, ?, ?)
+      ON CONFLICT(project_id, category, progress_date)
+      DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
+    `;
+    db.run(
+      sql,
+      [progress.project_id, progress.category, progress.progress_date, progress.status],
+      (err) => {
+        if (err) reject(err);
+        else resolve();
       }
     );
   });
