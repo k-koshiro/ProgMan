@@ -148,27 +148,83 @@ function CommentsPage() {
     };
   }, [projectId, pid, selectedDate, fetchComments, connectSocket]);
 
-  const ownersLeft = useMemo(() => {
-    let list: string[] = fixedLeft ?? [];
-    if (!list.length) {
-      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
-      list = dyn.slice(0, Math.ceil(dyn.length / 2));
-    }
-    if (ownerFilter.trim()) list = list.filter(o => o.includes(ownerFilter.trim()));
-    return list;
-  }, [fixedLeft, schedules, ownerFilter]);
-
-  const ownersRight = useMemo(() => {
-    let list: string[] = fixedRight ?? [];
-    if (!list.length) {
-      const dyn = Array.from(new Set(schedules.map(s => (s.owner || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ja'));
-      list = dyn.slice(Math.ceil(dyn.length / 2));
-    }
-    if (ownerFilter.trim()) list = list.filter(o => o.includes(ownerFilter.trim()));
-    return list;
-  }, [fixedRight, schedules, ownerFilter]);
-
   const commentsByOwner = useMemo(() => groupByOwner(comments), [comments]);
+
+  // カテゴリごとの担当者一覧を構築
+  const categoryOwnersMap = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    schedules.forEach(schedule => {
+      const category = (schedule.category || '').trim();
+      if (!category || category === 'マイルストーン' || category === OVERALL_KEY || category === overallLabel) return;
+      const owner = (schedule.owner || '').trim();
+      if (!map.has(category)) {
+        map.set(category, new Set());
+      }
+      if (owner) {
+        map.get(category)?.add(owner);
+      }
+    });
+
+    const result: Record<string, string[]> = {};
+    map.forEach((owners, category) => {
+      result[category] = Array.from(owners).sort((a, b) => a.localeCompare(b, 'ja'));
+    });
+    return result;
+  }, [schedules, OVERALL_KEY, overallLabel]);
+
+  const sectionLists = useMemo(() => {
+    const sanitize = (input: string[] | null | undefined) =>
+      (input ?? [])
+        .map(name => name.trim())
+        .filter(name => name && name !== OVERALL_KEY && name !== overallLabel);
+
+    const baseLeft = sanitize(fixedLeft);
+    const baseRight = sanitize(fixedRight);
+
+    const ensureSection = (section: string) => {
+      const name = section.trim();
+      if (!name || name === OVERALL_KEY || name === overallLabel) return;
+      if (baseLeft.includes(name) || baseRight.includes(name)) return;
+      if (baseLeft.length <= baseRight.length) {
+        baseLeft.push(name);
+      } else {
+        baseRight.push(name);
+      }
+    };
+
+    const scheduleCategories = Array.from(new Set(
+      schedules
+        .map(s => (s.category || '').trim())
+        .filter(category => category && category !== 'マイルストーン')
+    ));
+
+    scheduleCategories.forEach(ensureSection);
+    Object.keys(commentsByOwner).forEach(ensureSection);
+
+    return { left: baseLeft, right: baseRight };
+  }, [fixedLeft, fixedRight, schedules, commentsByOwner, OVERALL_KEY, overallLabel]);
+
+  const { left: sectionListsLeft, right: sectionListsRight } = sectionLists;
+
+  const sectionsLeft = useMemo(() => {
+    const filter = ownerFilter.trim();
+    if (!filter) return sectionListsLeft;
+    return sectionListsLeft.filter(section => {
+      if (section.includes(filter)) return true;
+      const owners = categoryOwnersMap[section];
+      return owners?.some(name => name.includes(filter)) ?? false;
+    });
+  }, [sectionListsLeft, ownerFilter, categoryOwnersMap]);
+
+  const sectionsRight = useMemo(() => {
+    const filter = ownerFilter.trim();
+    if (!filter) return sectionListsRight;
+    return sectionListsRight.filter(section => {
+      if (section.includes(filter)) return true;
+      const owners = categoryOwnersMap[section];
+      return owners?.some(name => name.includes(filter)) ?? false;
+    });
+  }, [sectionListsRight, ownerFilter, categoryOwnersMap]);
 
   const milestone = useMemo(() => {
     const dates = schedules.reduce(
@@ -389,59 +445,77 @@ function CommentsPage() {
         />
       </div>
 
-      {(ownersLeft.length === 0 && ownersRight.length === 0) ? (
-        <div className="text-gray-600">担当が未登録です。進捗管理表で担当を設定してください。</div>
+      {(sectionsLeft.length === 0 && sectionsRight.length === 0) ? (
+        <div className="text-gray-600">表示できるカテゴリがありません。進捗管理表でカテゴリと担当者を設定してください。</div>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-6">
-            {ownersLeft.map(owner => (
-              <div key={`L-${owner}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
-                    {selectedDate && saving[keyOf(owner, selectedDate)] && (
-                      <span className="text-xs text-blue-600">保存中…</span>
-                    )}
+            {sectionsLeft.map(section => {
+              const ownerNames = categoryOwnersMap[section];
+              const ownerLabel = ownerNames && ownerNames.length > 0 ? ownerNames.join('、') : null;
+              return (
+                <div key={`L-${section}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-semibold text-gray-800">
+                      {section}
+                      <span className="ml-2 text-sm font-normal text-gray-600">
+                        （担当: {ownerLabel ?? '未設定'}）
+                      </span>
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
+                      {selectedDate && saving[keyOf(section, selectedDate)] && (
+                        <span className="text-xs text-blue-600">保存中…</span>
+                      )}
+                    </div>
                   </div>
+                  <textarea
+                    className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder="本日の進捗・課題・所要支援などを記入"
+                    value={getValueForSelected(section)}
+                    onChange={(e) => {
+                      handleChange(section, e.target.value);
+                      scheduleSave(section, e.target.value);
+                    }}
+                    disabled={!canEdit}
+                  />
                 </div>
-                <textarea
-                  className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="本日の進捗・課題・所要支援などを記入"
-                  value={getValueForSelected(owner)}
-                  onChange={(e) => {
-                    handleChange(owner, e.target.value);
-                    scheduleSave(owner, e.target.value);
-                  }}
-                  disabled={!canEdit}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div className="space-y-6">
-            {ownersRight.map(owner => (
-              <div key={`R-${owner}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-lg font-semibold text-gray-800">{owner}</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
-                    {selectedDate && saving[keyOf(owner, selectedDate)] && (
-                      <span className="text-xs text-blue-600">保存中…</span>
-                    )}
+            {sectionsRight.map(section => {
+              const ownerNames = categoryOwnersMap[section];
+              const ownerLabel = ownerNames && ownerNames.length > 0 ? ownerNames.join('、') : null;
+              return (
+                <div key={`R-${section}`} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-semibold text-gray-800">
+                      {section}
+                      <span className="ml-2 text-sm font-normal text-gray-600">
+                        （担当: {ownerLabel ?? '未設定'}）
+                      </span>
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">{formatDateLabel(selectedDate)} のコメント</span>
+                      {selectedDate && saving[keyOf(section, selectedDate)] && (
+                        <span className="text-xs text-blue-600">保存中…</span>
+                      )}
+                    </div>
                   </div>
+                  <textarea
+                    className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder="本日の進捗・課題・所要支援などを記入"
+                    value={getValueForSelected(section)}
+                    onChange={(e) => {
+                      handleChange(section, e.target.value);
+                      scheduleSave(section, e.target.value);
+                    }}
+                    disabled={!canEdit}
+                  />
                 </div>
-                <textarea
-                  className={`w-full min-h-[96px] border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${!canEdit ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="本日の進捗・課題・所要支援などを記入"
-                  value={getValueForSelected(owner)}
-                  onChange={(e) => {
-                    handleChange(owner, e.target.value);
-                    scheduleSave(owner, e.target.value);
-                  }}
-                  disabled={!canEdit}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
