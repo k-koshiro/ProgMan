@@ -350,8 +350,10 @@ function CommentsPage() {
   const pageDates = useMemo(() => commentPages.map(p => p.comment_date), [commentPages]);
 
   const milestoneBoardSection = useMemo(() => {
+    const excludedItems = ['セールスポイント確認会', '試算', '見積り', '契約'];
     const milestoneItems = schedules
       .filter(s => (s.category || '').trim() === 'マイルストーン')
+      .filter(s => !excludedItems.includes((s.item || '').trim()))
       .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
     if (milestoneItems.length === 0) return null;
     return <MilestoneBoard items={milestoneItems} />;
