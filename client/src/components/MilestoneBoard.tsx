@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { format } from 'date-fns';
 
 export interface MilestoneBoardItem {
   id?: number | string;
@@ -10,24 +9,6 @@ export interface MilestoneBoardItem {
 interface Props {
   items: MilestoneBoardItem[];
 }
-
-const colorPalette = [
-  'bg-purple-600',
-  'bg-red-600',
-  'bg-orange-500',
-  'bg-amber-500',
-  'bg-green-600',
-  'bg-emerald-600',
-  'bg-cyan-600',
-  'bg-blue-600',
-  'bg-indigo-600',
-  'bg-fuchsia-600',
-  'bg-rose-600',
-  'bg-slate-800',
-  'bg-yellow-500',
-  'bg-lime-600',
-  'bg-teal-600',
-];
 
 function formatJP(date?: string | null): string {
   if (!date) return '';
@@ -40,8 +21,67 @@ function formatJP(date?: string | null): string {
 }
 
 export default function MilestoneBoard({ items }: Props) {
+  // スクリーンショットに基づく項目ごとの色設定
+  const itemColorMap: Record<string, string> = {
+    '開発着手': '#8064A2',
+    '申請': '#8064A2',
+    '開発キックオフ': '#DC2626',
+    '画像協力会社選定': '#F79646',
+    '画像協力会社選定会議': '#F79646',
+    '役物協力会社選定': '#F79646',
+    '役物協力会社選定会議': '#F79646',
+    '画像協力会社決定': '#F79646',
+    'G1': '#DC2626',
+    '試作基板完': '#00B050',
+    '画像サウンド制作開始': '#FFFF00',
+    '画像/サウンド実装スケ作成': '#FFFF00',
+    '4カ月スケ作成': '#FFFF00',
+    '4ヵ月スケ作成': '#FFFF00',
+    '経営キックオフ': '#00B050',
+    '試作確認会': '#00B0F0',
+    'G2': '#DC2626',
+    'P試射': '#DC2626',
+    'PJ試射': '#262626',
+    '本部内試射': '#DC2626',
+    'パラサミ試射１/営業試射１': '#262626',
+    'パラサミ試射２/営業試射２': '#262626',
+    'バラリミ認証': '#FFFF00',
+    'バラリミ認証再': '#FFFF00',
+    'G3': '#DC2626',
+  };
+
+  // その他の項目用の補完色（スクリーンショットに無い項目用）
+  const fallbackColors = [
+    '#8064A2',
+    '#F79646',
+    '#FFFF00',
+    '#00B050',
+    '#00B0F0',
+    '#262626',
+    '#DC2626',
+    '#2563EB',
+  ];
+
+  const getReadableTextColor = (hex: string) => {
+    const match = /^#?([a-fA-F0-9]{6})$/.exec(hex.trim());
+    if (!match) return '#1f2937';
+    const value = parseInt(match[1], 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+    return brightness > 160 ? '#1f2937' : '#ffffff';
+  };
+
   const colored = useMemo(
-    () => items.map((it, i) => ({ ...it, color: colorPalette[i % colorPalette.length] })),
+    () => {
+      let fallbackIndex = 0;
+      return items.map((it) => {
+        const color = itemColorMap[it.name] ?? fallbackColors[fallbackIndex % fallbackColors.length];
+        if (!itemColorMap[it.name]) fallbackIndex++;
+        return { ...it, color, textColor: getReadableTextColor(color) };
+      });
+    },
     [items]
   );
 
@@ -82,7 +122,8 @@ export default function MilestoneBoard({ items }: Props) {
           {colored.map((it, i) => (
             <div
               key={`${it.id ?? it.name}-head-${i}`}
-              className={`${it.color} text-white ${textSizeClass} font-semibold ${paddingClass} ${itemWidthClass} text-center border-l border-gray-800 truncate`}
+              className={`${textSizeClass} font-semibold ${paddingClass} ${itemWidthClass} text-center border-l border-gray-800 truncate`}
+              style={{ backgroundColor: it.color, color: it.textColor }}
               title={it.name}
             >
               <span className="block truncate">{it.name}</span>
@@ -97,7 +138,8 @@ export default function MilestoneBoard({ items }: Props) {
           {colored.map((it, i) => (
             <div
               key={`${it.id ?? it.name}-date-${i}`}
-              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-[11px] sm:text-xs text-gray-900 truncate`}
+              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-[11px] sm:text-xs truncate`}
+              style={{ backgroundColor: it.color, color: it.textColor }}
             >
               <span className="block truncate">{formatJP(it.date)}</span>
             </div>
