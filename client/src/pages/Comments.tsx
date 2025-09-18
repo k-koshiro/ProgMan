@@ -5,10 +5,10 @@ import { useScheduleStore } from '../store/useScheduleStore';
 import { useCommentStore } from '../store/useCommentStore';
 import type { CommentEntry, ProgressStatus } from '../types';
 import MilestoneBoard from '../components/MilestoneBoard';
+import DateManager from '../components/DateManager';
 
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const fullDateFormatter = new Intl.DateTimeFormat('ja-JP');
-const shortDateFormatter = new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', weekday: 'short' });
 
 function groupByOwner(comments: CommentEntry[]): Record<string, CommentEntry[]> {
   return comments.reduce((acc, c) => {
@@ -62,7 +62,6 @@ function CommentsPage() {
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [ownerFilter, setOwnerFilter] = useState('');
   const [fixedLeft, setFixedLeft] = useState<string[] | null>(null);
   const [fixedRight, setFixedRight] = useState<string[] | null>(null);
   const [OVERALL_KEY, setOverallKey] = useState<string>('__OVERALL__');
@@ -223,25 +222,8 @@ function CommentsPage() {
 
   const { left: sectionListsLeft, right: sectionListsRight } = sectionLists;
 
-  const sectionsLeft = useMemo(() => {
-    const filter = ownerFilter.trim();
-    if (!filter) return sectionListsLeft;
-    return sectionListsLeft.filter(section => {
-      if (section.includes(filter)) return true;
-      const owners = categoryOwnersMap[section];
-      return owners?.some(name => name.includes(filter)) ?? false;
-    });
-  }, [sectionListsLeft, ownerFilter, categoryOwnersMap]);
-
-  const sectionsRight = useMemo(() => {
-    const filter = ownerFilter.trim();
-    if (!filter) return sectionListsRight;
-    return sectionListsRight.filter(section => {
-      if (section.includes(filter)) return true;
-      const owners = categoryOwnersMap[section];
-      return owners?.some(name => name.includes(filter)) ?? false;
-    });
-  }, [sectionListsRight, ownerFilter, categoryOwnersMap]);
+  const sectionsLeft = sectionListsLeft;
+  const sectionsRight = sectionListsRight;
 
   const milestone = useMemo(() => {
     const dates = schedules.reduce(
@@ -347,7 +329,6 @@ function CommentsPage() {
     return progress?.status || 'idle';
   };
 
-  const pageDates = useMemo(() => commentPages.map(p => p.comment_date), [commentPages]);
 
   const milestoneBoardSection = useMemo(() => {
     const excludedItems = ['セールスポイント確認会', '試算', '見積り', '契約'];
@@ -359,92 +340,6 @@ function CommentsPage() {
     return <MilestoneBoard items={milestoneItems} projectId={pid} editable={true} />;
   }, [schedules]);
 
-  const commentControlsSection = (
-    <>
-      <div className="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-700">
-          <span>最新進捗日: {formatDateLabel(latestDate, shortDateFormatter)}</span>
-          {selectedDate && latestDate && selectedDate !== latestDate && (
-            <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">表示中: {formatDateLabel(selectedDate, shortDateFormatter)}</span>
-          )}
-          {loading && <span className="text-xs text-blue-600">読み込み中…</span>}
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {pageDates.length === 0 ? (
-            <span className="text-sm text-gray-600">まだコメントページがありません。日付を選択して作成してください。</span>
-          ) : (
-            pageDates.map(date => (
-              <button
-                key={date}
-                onClick={() => handleSelectDate(date)}
-                className={`px-3 py-1 text-sm rounded-md border transition-colors ${date === selectedDate ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}
-              >
-                {formatDateLabel(date, shortDateFormatter)}
-              </button>
-            ))
-          )}
-        </div>
-        <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
-          <div className="flex items-center gap-2">
-            <input
-              type="date"
-              value={newPageDate}
-              max="9999-12-31"
-              onChange={(e) => setNewPageDate(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleCreatePage}
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-md text-sm transition-colors"
-            >
-              {`${formatDateLabel(newPageDate, shortDateFormatter)}バージョンのコメントページを新規作成`}
-            </button>
-          </div>
-          <div className="flex items-center gap-2 md:ml-auto">
-            <label className="text-sm text-gray-700">担当フィルタ</label>
-            <input
-              value={ownerFilter}
-              onChange={(e) => setOwnerFilter(e.target.value)}
-              placeholder="例: 佐藤"
-              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {selectedDate && (
-            <button
-              onClick={handleDeletePage}
-              className="text-sm text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md border border-red-200 transition-colors"
-            >
-              {`${formatDateLabel(selectedDate, shortDateFormatter)}バージョンを削除`}
-            </button>
-          )}
-        </div>
-        {(localMessage || error) && (
-          <div className="mt-3 text-sm text-red-600">{localMessage || error}</div>
-        )}
-      </div>
-
-      {selectedDate ? (
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-700">対象日</label>
-            <input
-              type="date"
-              value={selectedDate}
-              max="9999-12-31"
-              onChange={(e) => handleSelectDate(e.target.value)}
-              className="px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mb-6 rounded-md border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-          日付ページを選択または作成するとコメントを編集できます。
-        </div>
-      )}
-    </>
-  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -465,7 +360,19 @@ function CommentsPage() {
 
       {milestoneBoardSection}
 
-      {commentControlsSection}
+      <DateManager
+        commentPages={commentPages}
+        selectedDate={selectedDate}
+        latestDate={latestDate}
+        loading={loading}
+        error={error}
+        localMessage={localMessage}
+        newPageDate={newPageDate}
+        onSelectDate={handleSelectDate}
+        onCreatePage={handleCreatePage}
+        onDeletePage={handleDeletePage}
+        onNewPageDateChange={setNewPageDate}
+      />
 
       <div className="mb-6 mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg shadow-md hover:shadow-lg transition-shadow p-5 border border-blue-200">
         <div className="flex items-center justify-between mb-2">
