@@ -59,7 +59,7 @@ function formatDelay(days: number | null): { text: string; color: string } {
 export default function MilestoneBoard({ items, projectId, editable = false }: Props) {
   const [estimates, setEstimates] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
-  const [saveTimers, setSaveTimers] = useState<Record<number, NodeJS.Timeout>>({});
+  const [saveTimers, setSaveTimers] = useState<Record<number, ReturnType<typeof setTimeout>>>({});
 
   // スクリーンショットに基づく項目ごとの色設定
   const itemColorMap: Record<string, string> = {

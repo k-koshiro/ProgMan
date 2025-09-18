@@ -100,19 +100,19 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <ProgressBar progress={calculateCategoryProgress(categorySchedules)} />
                 </td>
               </tr>
-              {categorySchedules.map((schedule) => (
-                <tr key={schedule.id} className="hover:bg-gray-50">
+              {categorySchedules.map((schedule, scheduleIndex) => (
+                <tr key={`${category}-${schedule.id}-${scheduleIndex}`} className="hover:bg-gray-50">
                   <td className="border border-gray-300 px-4 py-2">{schedule.item}</td>
                   <td className="border border-gray-300 px-2 py-1">
                     <DateCell
                       value={schedule.start_date}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, start_date: value === undefined ? null : value })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, start_date: value || undefined })}
                     />
                   </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <EditableCell
                       value={schedule.duration}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, duration: value === undefined ? null : value as number })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, duration: value ? Number(value) : undefined })}
                       type="number"
                       placeholder="日数"
                       min={1}
@@ -124,13 +124,13 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   <td className="border border-gray-300 px-2 py-1">
                     <DateCell
                       value={schedule.actual_start}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_start: value === undefined ? null : value })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_start: value || undefined })}
                     />
                   </td>
                   <td className="border border-gray-300 px-2 py-1">
                     <EditableCell
                       value={schedule.actual_duration}
-                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_duration: value === undefined ? null : value as number })}
+                      onChange={(value) => onUpdateSchedule({ id: schedule.id, actual_duration: value ? Number(value) : undefined })}
                       type="number"
                       placeholder=""
                       min={1}
