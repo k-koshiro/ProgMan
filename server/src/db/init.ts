@@ -105,19 +105,38 @@ export const initDatabase = () => {
                 reject(cpErr);
                 return;
               }
-              // 既存コメントからページ情報を補完
-              db.run(
-                `INSERT OR IGNORE INTO comment_pages (project_id, comment_date)
-                 SELECT project_id, comment_date FROM comments GROUP BY project_id, comment_date`,
-                (seedErr) => {
-                  if (seedErr) {
-                    console.error('Error seeding comment_pages:', seedErr);
-                    reject(seedErr);
-                    return;
-                  }
-                  resolve();
+              // milestone_estimates テーブル作成（マイルストーンの見込み日管理）
+              db.run(`
+                CREATE TABLE IF NOT EXISTS milestone_estimates (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  project_id INTEGER NOT NULL,
+                  schedule_id INTEGER NOT NULL,
+                  estimate_date DATE,
+                  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE(project_id, schedule_id),
+                  FOREIGN KEY (project_id) REFERENCES projects(id),
+                  FOREIGN KEY (schedule_id) REFERENCES schedules(id) ON DELETE CASCADE
+                )
+              `, (meErr) => {
+                if (meErr) {
+                  console.error('Error creating milestone_estimates table:', meErr);
+                  reject(meErr);
+                  return;
                 }
-              );
+                // 既存コメントからページ情報を補完
+                db.run(
+                  `INSERT OR IGNORE INTO comment_pages (project_id, comment_date)
+                   SELECT project_id, comment_date FROM comments GROUP BY project_id, comment_date`,
+                  (seedErr) => {
+                    if (seedErr) {
+                      console.error('Error seeding comment_pages:', seedErr);
+                      reject(seedErr);
+                      return;
+                    }
+                    resolve();
+                  }
+                );
+              });
             });
           });
         });

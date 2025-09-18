@@ -519,3 +519,56 @@ export const upsertCategoryProgress = (progress: {
     );
   });
 };
+
+// マイルストーン見込み日の取得（プロジェクトごと）
+export const getMilestoneEstimatesByProject = (
+  projectId: number
+): Promise<Array<{ schedule_id: number; estimate_date: string | null }>> => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT schedule_id, estimate_date FROM milestone_estimates WHERE project_id = ?',
+      [projectId],
+      (err, rows) => {
+        if (err) reject(err);
+        else resolve((rows as Array<{ schedule_id: number; estimate_date: string | null }>) || []);
+      }
+    );
+  });
+};
+
+// マイルストーン見込み日の更新または挿入
+export const upsertMilestoneEstimate = (estimate: {
+  project_id: number;
+  schedule_id: number;
+  estimate_date: string | null;
+}): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (!estimate.estimate_date) {
+      // 見込み日が空の場合はレコードを削除
+      db.run(
+        'DELETE FROM milestone_estimates WHERE project_id = ? AND schedule_id = ?',
+        [estimate.project_id, estimate.schedule_id],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    } else {
+      // 見込み日がある場合は挿入または更新
+      const sql = `
+        INSERT INTO milestone_estimates (project_id, schedule_id, estimate_date)
+        VALUES (?, ?, ?)
+        ON CONFLICT(project_id, schedule_id)
+        DO UPDATE SET estimate_date = excluded.estimate_date, updated_at = CURRENT_TIMESTAMP
+      `;
+      db.run(
+        sql,
+        [estimate.project_id, estimate.schedule_id, estimate.estimate_date],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    }
+  });
+};

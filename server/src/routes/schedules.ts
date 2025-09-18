@@ -1,5 +1,10 @@
 import express from 'express';
-import { getSchedulesByProject, updateSchedule } from '../db/queries.js';
+import {
+  getSchedulesByProject,
+  updateSchedule,
+  getMilestoneEstimatesByProject,
+  upsertMilestoneEstimate
+} from '../db/queries.js';
 
 const router = express.Router();
 
@@ -24,6 +29,38 @@ router.put('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating schedule:', error);
     res.status(500).json({ error: 'Failed to update schedule' });
+  }
+});
+
+// マイルストーン見込み日を取得
+router.get('/:projectId/milestone-estimates', async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const estimates = await getMilestoneEstimatesByProject(projectId);
+    res.json(estimates);
+  } catch (error) {
+    console.error('Error fetching milestone estimates:', error);
+    res.status(500).json({ error: 'Failed to fetch milestone estimates' });
+  }
+});
+
+// マイルストーン見込み日を更新
+router.put('/:projectId/milestone-estimates/:scheduleId', async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.projectId);
+    const scheduleId = parseInt(req.params.scheduleId);
+    const { estimate_date } = req.body;
+
+    await upsertMilestoneEstimate({
+      project_id: projectId,
+      schedule_id: scheduleId,
+      estimate_date: estimate_date || null
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating milestone estimate:', error);
+    res.status(500).json({ error: 'Failed to update milestone estimate' });
   }
 });
 

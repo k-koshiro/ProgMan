@@ -356,7 +356,7 @@ function CommentsPage() {
       .filter(s => !excludedItems.includes((s.item || '').trim()))
       .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
     if (milestoneItems.length === 0) return null;
-    return <MilestoneBoard items={milestoneItems} />;
+    return <MilestoneBoard items={milestoneItems} projectId={pid} editable={true} />;
   }, [schedules]);
 
   const commentControlsSection = (

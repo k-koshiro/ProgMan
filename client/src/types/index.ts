@@ -60,3 +60,8 @@ export interface CategoryProgress {
   status: ProgressStatus;
   updated_at?: string;
 }
+
+export interface MilestoneEstimate {
+  schedule_id: number;
+  estimate_date: string | null;
+}
