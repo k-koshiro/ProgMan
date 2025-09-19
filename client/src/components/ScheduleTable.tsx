@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Schedule } from '../types';
 import EditableCell from './EditableCell';
 import DateCell from './DateCell';
@@ -79,8 +79,8 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
         </thead>
         <tbody>
           {Object.entries(groupedSchedules).map(([category, categorySchedules], categoryIndex) => (
-            <>
-              <tr key={`category-${category}`} className={getCategoryColor(categoryIndex)}>
+            <React.Fragment key={`fragment-${category}-${categoryIndex}`}>
+              <tr className={getCategoryColor(categoryIndex)}>
                 <td className="border border-gray-300 px-4 py-2 font-semibold" rowSpan={categorySchedules.length + 1}>
                   {category}
                 </td>
@@ -171,7 +171,7 @@ function ScheduleTable({ schedules, onUpdateSchedule }: ScheduleTableProps) {
                   </td>
                 </tr>
               ))}
-            </>
+            </React.Fragment>
           ))}
         </tbody>
       </table>

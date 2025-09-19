@@ -6,7 +6,10 @@ import VersionInfo from './components/VersionInfo';
 
 function App() {
   return (
-    <Router basename="/progress-manager">
+    <Router basename="/progress-manager" future={{
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }}>
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Navigate to="/projects" replace />} />
