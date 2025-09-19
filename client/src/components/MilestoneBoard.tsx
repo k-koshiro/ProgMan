@@ -276,34 +276,27 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
           </div>
           {colored.map((it, i) => {
             const scheduleId = typeof it.id === 'number' ? it.id : 0;
-            const hasValue = typeof estimates[scheduleId] === 'string' && isoDatePattern.test(estimates[scheduleId]);
+            const rawValue = typeof estimates[scheduleId] === 'string' ? estimates[scheduleId] : '';
+            const hasValue = rawValue && isoDatePattern.test(rawValue);
+            const displayText = hasValue ? formatJP(rawValue) : '未入力';
+
             return (
               <div
                 key={`${it.id ?? it.name}-estimate-${i}`}
-                className={`${itemWidthClass} ${paddingClass} border-l border-gray-800`}
+                className={`${itemWidthClass} ${paddingClass} border-l border-gray-800 relative flex items-center justify-center bg-[#FFF5E6]`}
               >
+                <span
+                  className={`block text-xs sm:text-sm font-semibold leading-tight ${hasValue ? 'text-slate-800' : 'text-gray-400'}`}
+                >
+                  {displayText}
+                </span>
                 <input
                   type="date"
-                  value={hasValue ? estimates[scheduleId]! : ''}
+                  value={hasValue ? rawValue : ''}
                   onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
                   disabled={!editable || loading}
-                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center pr-8 pl-2 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: '#FFFBF0',
-                    color: hasValue ? '#1f2937' : '#FFFBF0',
-                    caretColor: '#1f2937'
-                  }}
-                  onFocus={(e) => {
-                    if (!hasValue) {
-                      e.target.style.color = '#1f2937';
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const currentValue = e.target.value ? e.target.value.slice(0, 10) : '';
-                    if (!currentValue) {
-                      e.target.style.color = '#FFFBF0';
-                    }
-                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  aria-label={`${it.name}の見込み日`}
                 />
               </div>
             );
