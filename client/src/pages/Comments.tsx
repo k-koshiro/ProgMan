@@ -36,7 +36,7 @@ const getProgressStyle = (status: ProgressStatus | undefined) => {
   return option || progressOptions[3]; // デフォルトは無作業
 };
 
-const DEFAULT_LEFT_SECTIONS = ['デザイン', 'メカ', 'ハード', 'ゲージ'];
+const DEFAULT_LEFT_SECTIONS = ['出玉', 'デザイン', 'メカ', 'ハード', 'ゲージ'];
 const DEFAULT_RIGHT_SECTIONS = ['企画', '画像', 'サブソフト', 'メインソフト', 'サウンド'];
 
 const normalizeSectionName = (name: string) => {
@@ -220,12 +220,17 @@ function CommentsPage() {
       return normalizedList;
     };
 
-    const baseLeft = sanitize(fixedLeft);
-    if (baseLeft.length === 0) {
-      DEFAULT_LEFT_SECTIONS.forEach(name => {
-        if (!baseLeft.includes(name)) baseLeft.push(name);
+    let baseLeft = sanitize(fixedLeft);
+    const orderedLeft: string[] = [];
+    DEFAULT_LEFT_SECTIONS.forEach(name => {
+      if (!orderedLeft.includes(name)) orderedLeft.push(name);
+    });
+    baseLeft
+      .filter(name => !DEFAULT_LEFT_SECTIONS.includes(name))
+      .forEach(name => {
+        if (!orderedLeft.includes(name)) orderedLeft.push(name);
       });
-    }
+    baseLeft = orderedLeft;
 
     let baseRight = sanitize(fixedRight);
 
