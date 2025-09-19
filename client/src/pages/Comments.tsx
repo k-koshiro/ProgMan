@@ -331,12 +331,38 @@ function CommentsPage() {
 
 
   const milestoneBoardSection = useMemo(() => {
-    const excludedItems = ['セールスポイント確認会', '試算', '見積り', '契約'];
-    const milestoneItems = schedules
-      .filter(s => (s.category || '').trim() === 'マイルストーン')
-      .filter(s => !excludedItems.includes((s.item || '').trim()))
-      .map(s => ({ id: s.id, name: s.item, date: s.start_date }));
-    if (milestoneItems.length === 0) return null;
+    // 固定表示する14項目（スクリーンショットの並び順に準拠）
+    const fixedItems = [
+      '開発着手',
+      '開発キックオフ',
+      '経営キックオフ',
+      'G1',
+      '試作確認会',
+      '画像/サウンド実装スケ作成',
+      '4カ月スケ作成',
+      'G2',
+      'PJ試射',
+      '本部内試射',
+      'パラサミ試射１/営業試射１',
+      'パラサミ試射２/営業試射２',
+      'G3',
+      '申請'
+    ];
+
+    // マイルストーンカテゴリのスケジュールからデータを取得
+    const milestoneSchedules = schedules
+      .filter(s => (s.category || '').trim() === 'マイルストーン');
+
+    // 固定項目ごとに対応するスケジュールデータを探して順番に配置
+    const milestoneItems = fixedItems.map(itemName => {
+      const schedule = milestoneSchedules.find(s => (s.item || '').trim() === itemName);
+      return {
+        id: schedule?.id || itemName, // スケジュールが見つからない場合は項目名をIDとして使用
+        name: itemName,
+        date: schedule?.start_date || null // スケジュールが見つからない場合はnull
+      };
+    });
+
     return <MilestoneBoard items={milestoneItems} projectId={pid} editable={true} />;
   }, [schedules]);
 
