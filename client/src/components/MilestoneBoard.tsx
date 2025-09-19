@@ -216,16 +216,24 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
           <div className="w-20 sm:w-24 md:w-28 min-w-[5rem] text-center font-bold py-2 bg-purple-200 border-r border-gray-800 select-none text-xs sm:text-sm">
             項目
           </div>
-          {colored.map((it, i) => (
-            <div
-              key={`${it.id ?? it.name}-head-${i}`}
-              className={`${textSizeClass} font-semibold ${paddingClass} ${itemWidthClass} text-center border-l border-gray-800 truncate`}
-              style={{ backgroundColor: it.color, color: it.textColor }}
-              title={it.name}
-            >
-              <span className="block truncate">{it.name}</span>
-            </div>
-          ))}
+          {colored.map((it, i) => {
+            // 長い項目名を改行で分割
+            const displayName = it.name
+              .replace('パラサミ試射１/営業試射１', 'パラサミ試射１/\n営業試射１')
+              .replace('パラサミ試射２/営業試射２', 'パラサミ試射２/\n営業試射２')
+              .replace('画像/サウンド実装スケ作成', '画像/サウンド\n実装スケ作成');
+
+            return (
+              <div
+                key={`${it.id ?? it.name}-head-${i}`}
+                className={`${textSizeClass} font-semibold ${paddingClass} ${itemWidthClass} text-center border-l border-gray-800`}
+                style={{ backgroundColor: it.color, color: it.textColor }}
+                title={it.name}
+              >
+                <span className="block whitespace-pre-line leading-tight">{displayName}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* 2行目: 予定日 */}
