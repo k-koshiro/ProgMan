@@ -32,8 +32,8 @@ router.get('/sections', async (_req, res) => {
   res.json({
     overallKey: '__OVERALL__',
     overallLabel: '全体報告',
-    left: ['デザイン','メカ','ハード','ゲージ','プロマネ'],
-    right: ['企画','画像','出玉','サブ','メイン']
+    left: ['デザイン','メカ','ハード','ゲージ'],
+    right: ['企画','画像','サブソフト','メインソフト']
   });
 });
 

@@ -100,8 +100,8 @@ function CommentsPage() {
       } catch (e) {
         console.warn('sections load failed', e);
       }
-      setFixedLeft(prev => prev ?? ['全体報告', 'デザイン', 'メカ', 'ハード', 'ゲージ', 'プロマネ'].filter(x => x !== '全体報告'));
-      setFixedRight(prev => prev ?? ['企画', '画像', '出玉', 'サブ', 'メイン']);
+      setFixedLeft(prev => prev ?? ['デザイン', 'メカ', 'ハード', 'ゲージ']);
+      setFixedRight(prev => prev ?? ['企画', '画像', 'サブソフト', 'メインソフト', 'サウンド']);
     };
     load();
     return () => {
@@ -169,9 +169,21 @@ function CommentsPage() {
   // カテゴリごとの担当者一覧を構築
   const categoryOwnersMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
+    // 削除すべき古いカテゴリのリスト
+    const excludedCategories = ['プロマネ', '検査技術', '企画システム', 'サブ'];
+
     schedules.forEach(schedule => {
-      const category = (schedule.category || '').trim();
+      let category = (schedule.category || '').trim();
       if (!category || category === 'マイルストーン' || category === OVERALL_KEY || category === overallLabel) return;
+
+      // 古いカテゴリを除外
+      if (excludedCategories.includes(category)) return;
+
+      // 「メイン」を「メインソフト」にマッピング
+      if (category === 'メイン') {
+        category = 'メインソフト';
+      }
+
       const owner = (schedule.owner || '').trim();
       if (!map.has(category)) {
         map.set(category, new Set());
@@ -195,27 +207,80 @@ function CommentsPage() {
         .filter(name => name && name !== OVERALL_KEY && name !== overallLabel);
 
     const baseLeft = sanitize(fixedLeft);
-    const baseRight = sanitize(fixedRight);
+    let baseRight = sanitize(fixedRight);
+
+    // 右側に表示する順序を定義（上から企画、画像、サブソフト、メインソフト）
+    const rightOrder = ['企画', '画像', 'サブソフト', 'メインソフト'];
+
+    // baseRightが空の場合、デフォルト値を設定
+    if (baseRight.length === 0) {
+      baseRight = [...rightOrder];
+    } else {
+      // 既存の項目に順序付けを適用
+      const orderedItems: string[] = [];
+      const remainingItems: string[] = [];
+
+      baseRight.forEach(item => {
+        if (rightOrder.includes(item)) {
+          orderedItems.push(item);
+        } else {
+          remainingItems.push(item);
+        }
+      });
+
+      // rightOrderの順序で並べ替え
+      const sortedOrderedItems = rightOrder.filter(item => orderedItems.includes(item));
+      baseRight = [...sortedOrderedItems, ...remainingItems];
+    }
 
     const ensureSection = (section: string) => {
       const name = section.trim();
       if (!name || name === OVERALL_KEY || name === overallLabel) return;
       if (baseLeft.includes(name) || baseRight.includes(name)) return;
-      if (baseLeft.length <= baseRight.length) {
+
+      // 右側の定義された順序に含まれているか確認
+      if (rightOrder.includes(name)) {
+        // 正しい位置に挿入
+        const index = rightOrder.indexOf(name);
+        const insertPosition = baseRight.findIndex(item => rightOrder.indexOf(item) > index);
+        if (insertPosition === -1) {
+          baseRight.push(name);
+        } else {
+          baseRight.splice(insertPosition, 0, name);
+        }
+      } else if (baseLeft.length <= baseRight.length) {
         baseLeft.push(name);
       } else {
         baseRight.push(name);
       }
     };
 
+    // 削除すべき古いカテゴリのリスト
+    const excludedCategories = ['プロマネ', '検査技術', '企画システム', 'サブ'];
+
     const scheduleCategories = Array.from(new Set(
       schedules
-        .map(s => (s.category || '').trim())
-        .filter(category => category && category !== 'マイルストーン')
+        .map(s => {
+          let category = (s.category || '').trim();
+          // 「メイン」を「メインソフト」にマッピング
+          if (category === 'メイン') {
+            category = 'メインソフト';
+          }
+          return category;
+        })
+        .filter(category => category && category !== 'マイルストーン' && !excludedCategories.includes(category))
     ));
 
     scheduleCategories.forEach(ensureSection);
-    Object.keys(commentsByOwner).forEach(ensureSection);
+
+    // commentsByOwnerのキーも除外リストでフィルタリング
+    Object.keys(commentsByOwner)
+      .filter(owner => !excludedCategories.includes(owner))
+      .forEach(owner => {
+        // 「メイン」を「メインソフト」にマッピング
+        const mappedOwner = owner === 'メイン' ? 'メインソフト' : owner;
+        ensureSection(mappedOwner);
+      });
 
     return { left: baseLeft, right: baseRight };
   }, [fixedLeft, fixedRight, schedules, commentsByOwner, OVERALL_KEY, overallLabel]);
