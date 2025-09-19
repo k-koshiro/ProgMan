@@ -221,6 +221,12 @@ function CommentsPage() {
     };
 
     const baseLeft = sanitize(fixedLeft);
+    if (baseLeft.length === 0) {
+      DEFAULT_LEFT_SECTIONS.forEach(name => {
+        if (!baseLeft.includes(name)) baseLeft.push(name);
+      });
+    }
+
     let baseRight = sanitize(fixedRight);
 
     if (baseRight.length === 0) {
@@ -239,6 +245,12 @@ function CommentsPage() {
 
       const sortedOrderedItems = rightOrder.filter(item => orderedItems.includes(item));
       baseRight = [...sortedOrderedItems, ...remainingItems];
+
+      rightOrder.forEach(item => {
+        if (!baseRight.includes(item)) {
+          baseRight.push(item);
+        }
+      });
     }
 
     const ensureSection = (section: string) => {
