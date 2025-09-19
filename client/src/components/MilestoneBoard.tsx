@@ -276,16 +276,31 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
           </div>
           {colored.map((it, i) => {
             const scheduleId = typeof it.id === 'number' ? it.id : 0;
+            const hasValue = typeof estimates[scheduleId] === 'string' && isoDatePattern.test(estimates[scheduleId]);
             return (
               <div
                 key={`${it.id ?? it.name}-estimate-${i}`}
                 className={`${itemWidthClass} ${paddingClass} border-l border-gray-800`}
               >
                 <input
-                  type="date"
-                  value={(typeof estimates[scheduleId] === 'string' && isoDatePattern.test(estimates[scheduleId])) ? estimates[scheduleId] : ''}
+                  type={hasValue ? 'date' : 'text'}
+                  value={hasValue ? estimates[scheduleId]! : ''}
                   onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
                   disabled={!editable || loading}
+                  onFocus={(e) => {
+                    if (!hasValue) {
+                      e.target.type = 'date';
+                      if (typeof (e.target as HTMLInputElement).showPicker === 'function') {
+                        (e.target as HTMLInputElement).showPicker();
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const currentValue = e.target.value ? e.target.value.slice(0, 10) : '';
+                    if (!currentValue) {
+                      e.target.type = 'text';
+                    }
+                  }}
                   className="w-full text-[10px] sm:text-xs border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#FFFBF0' }}
                 />
