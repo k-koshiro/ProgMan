@@ -6,16 +6,14 @@ import VersionInfo from './components/VersionInfo';
 
 function App() {
   return (
-    <Router basename="/progress-manager" future={{
-      v7_startTransition: true,
-      v7_relativeSplatPath: true
-    }}>
+    <Router basename="/progress-manager">
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/schedule/:projectId" element={<Schedule />} />
-          <Route path="/comments/:projectId/:date?" element={<CommentsPage />} />
+          <Route path="/comments/:projectId" element={<CommentsPage />} />
+          <Route path="/comments/:projectId/:date" element={<CommentsPage />} />
         </Routes>
         <VersionInfo />
       </div>
