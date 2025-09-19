@@ -37,16 +37,11 @@ function DateManager({
   onNewPageDateChange,
 }: DateManagerProps) {
   const [showNewPageForm, setShowNewPageForm] = useState(false);
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
-  const pageDates = commentPages.map(p => p.comment_date);
-
-  const handleDeleteDate = (date: string, event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (date === selectedDate) {
-      onDeletePage();
-    }
-  };
+  // 日付を降順（新しい順）でソート
+  const pageDates = commentPages
+    .map(p => p.comment_date)
+    .sort((a, b) => b.localeCompare(a));
 
   const handleCreatePage = () => {
     onCreatePage();
@@ -63,14 +58,6 @@ function DateManager({
               <span className="text-gray-600">最新進捗日:</span>
               <span className="font-semibold text-blue-600">{formatDateLabel(latestDate)}</span>
             </div>
-            {selectedDate && (
-              <div className="flex items-center gap-2">
-                <span className="text-gray-600">表示中:</span>
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                  {formatDateLabel(selectedDate)}
-                </span>
-              </div>
-            )}
           </div>
           {loading && (
             <div className="flex items-center gap-2">
@@ -80,58 +67,64 @@ function DateManager({
           )}
         </div>
 
-        {/* 日付タブ */}
+        {/* 日付選択とアクション */}
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             {pageDates.length === 0 ? (
               <div className="text-sm text-gray-500 py-2">コメントページがありません</div>
             ) : (
-              pageDates.map(date => (
-                <div
-                  key={date}
-                  className="relative group"
-                  onMouseEnter={() => setHoveredDate(date)}
-                  onMouseLeave={() => setHoveredDate(null)}
-                >
-                  <button
-                    onClick={() => onSelectDate(date)}
-                    className={`
-                      relative rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200
-                      border-2 min-w-[80px] text-center
-                      ${date === selectedDate
-                        ? 'bg-blue-500 text-white border-blue-500 shadow-lg scale-105'
-                        : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:scale-102'
+              <div className="flex items-center gap-3">
+                {/* 日付プルダウン */}
+                <div className="relative">
+                  <select
+                    value={selectedDate || ''}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        onSelectDate(e.target.value);
                       }
-                      ${date === latestDate && date !== selectedDate ? 'ring-2 ring-blue-300 ring-offset-1' : ''}
-                    `}
+                    }}
+                    className="appearance-none bg-blue-50 border-2 border-blue-400 text-blue-700 font-medium rounded-lg px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer hover:bg-blue-100 transition-colors min-w-[200px]"
+                    aria-label="コメント日付を選択"
                   >
-                    {formatDateLabel(date)}
-                    {date === latestDate && date !== selectedDate && (
-                      <span className="absolute -top-2 -right-2 rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white font-bold shadow-md">
-                        最新
-                      </span>
-                    )}
-                  </button>
-
-                  {/* 削除ボタン（ホバー時のみ表示） */}
-                  {hoveredDate === date && date === selectedDate && (
-                    <button
-                      onClick={(e) => handleDeleteDate(date, e)}
-                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-sm text-white hover:bg-red-600 transition-all duration-200 shadow-lg"
-                      title="この日付のページを削除"
-                    >
-                      ×
-                    </button>
-                  )}
+                    <option value="" disabled>
+                      日付を選択
+                    </option>
+                    {pageDates.map(date => (
+                      <option key={date} value={date}>
+                        {formatDateLabel(date)}
+                        {date === latestDate ? ' (最新)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {/* カスタム矢印アイコン */}
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
                 </div>
-              ))
+
+                {/* 削除ボタン（選択中の日付がある場合のみ表示） */}
+                {selectedDate && (
+                  <button
+                    onClick={() => onDeletePage()}
+                    className="flex items-center gap-1 rounded-lg bg-red-50 border-2 border-red-300 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 hover:border-red-400 transition-all"
+                    title={`${formatDateLabel(selectedDate)}を削除`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>削除</span>
+                  </button>
+                )}
+              </div>
             )}
 
             {/* 新規作成ボタン */}
             <button
               onClick={() => setShowNewPageForm(!showNewPageForm)}
               className={`
-                rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200 border-2
+                rounded-lg px-4 py-2.5 text-sm font-medium transition-all duration-200 border-2
                 ${showNewPageForm
                   ? 'bg-green-500 text-white border-green-500 shadow-lg'
                   : 'bg-white text-green-600 border-green-500 hover:bg-green-500 hover:text-white shadow-md hover:shadow-lg'
@@ -185,7 +178,7 @@ function DateManager({
         {!selectedDate && pageDates.length > 0 && (
           <div className="mt-4 rounded-lg bg-blue-50 border-2 border-blue-200 p-4 text-center shadow-inner">
             <p className="text-sm text-blue-700 font-medium">
-              📅 日付タブを選択してコメントを編集してください
+              日付を選択してコメントを編集してください
             </p>
           </div>
         )}
@@ -193,7 +186,9 @@ function DateManager({
         {/* コメントページなし時のメッセージ */}
         {!selectedDate && pageDates.length === 0 && (
           <div className="mt-4 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-            <div className="text-gray-400 text-3xl mb-2">📝</div>
+            <svg className="mx-auto h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
             <p className="text-sm text-gray-600 mb-2 font-medium">
               コメントページがありません
             </p>
