@@ -286,7 +286,7 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
                 className={`${itemWidthClass} ${paddingClass} border-l border-gray-800 relative flex items-center justify-center bg-[#FFF5E6]`}
               >
                 <span
-                  className={`block text-xs sm:text-sm font-semibold leading-tight ${hasValue ? 'text-slate-800' : 'text-gray-400'}`}
+                  className={`pointer-events-none block text-xs sm:text-sm font-semibold leading-tight ${hasValue ? 'text-slate-800' : 'text-gray-400'}`}
                 >
                   {displayText}
                 </span>
