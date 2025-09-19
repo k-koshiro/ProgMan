@@ -19,9 +19,10 @@ function formatJP(date?: string | null): string {
   const d = new Date(date);
   if (isNaN(d.getTime())) return '';
   const y = d.getFullYear();
+  const shortY = y.toString().slice(-2); // 年の下2桁
   const m = d.getMonth() + 1;
   const day = d.getDate();
-  return `${y}/${m}/${day}`;
+  return `${shortY}/${m}/${day}`;
 }
 
 // 日付差分を計算して遅れ日数を返す
@@ -261,8 +262,14 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
           {colored.map((it, i) => (
             <div
               key={`${it.id ?? it.name}-date-${i}`}
-              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-xs sm:text-sm font-semibold truncate`}
-              style={{ backgroundColor: it.color, color: it.textColor }}
+              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 font-extrabold truncate`}
+              style={{
+                backgroundColor: it.color,
+                color: it.textColor,
+                fontSize: itemCount <= 3 ? '16px' : itemCount <= 5 ? '15px' : '14px',
+                letterSpacing: '0.5px',
+                fontWeight: '800'
+              }}
             >
               <span className="block truncate">{formatJP(it.date)}</span>
             </div>
@@ -271,33 +278,88 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
 
         {/* 3行目: 見込み日 */}
         <div className="flex border-t border-gray-800">
-          <div className="w-20 sm:w-24 md:w-28 min-w-[5rem] text-center font-semibold py-1 bg-yellow-50 border-r border-gray-800 select-none text-xs sm:text-sm">
+          <div className="w-20 sm:w-24 md:w-28 min-w-[5rem] text-center font-semibold py-1 bg-yellow-50 border-r border-gray-800 select-none text-xs sm:text-sm relative group">
             見込み日
+            {editable && (
+              <div className="absolute hidden group-hover:block left-full ml-2 top-1/2 -translate-y-1/2 z-10 bg-gray-700 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                クリックして日付を選択
+              </div>
+            )}
           </div>
           {colored.map((it, i) => {
             const scheduleId = typeof it.id === 'number' ? it.id : 0;
             const rawValue = typeof estimates[scheduleId] === 'string' ? estimates[scheduleId] : '';
             const hasValue = rawValue && isoDatePattern.test(rawValue);
-            const displayText = hasValue ? formatJP(rawValue) : '未入力';
+            const displayText = hasValue ? formatJP(rawValue) : '';
+            const inputId = `estimate-input-${scheduleId}`;
+
+            // スケジュールIDが0の場合は編集不可（データが存在しない項目）
+            const canEdit = editable && !loading && scheduleId > 0;
 
             return (
               <div
                 key={`${it.id ?? it.name}-estimate-${i}`}
-                className={`${itemWidthClass} ${paddingClass} border-l border-gray-800 relative flex items-center justify-center bg-[#FFF5E6]`}
+                className={`${itemWidthClass} ${paddingClass} border-l border-gray-800 bg-[#FFF5E6] ${canEdit ? 'hover:bg-yellow-100' : ''} transition-colors relative`}
               >
-                <span
-                  className={`pointer-events-none block text-xs sm:text-sm font-semibold leading-tight ${hasValue ? 'text-slate-800' : 'text-gray-400'}`}
-                >
-                  {displayText}
-                </span>
-                <input
-                  type="date"
-                  value={hasValue ? rawValue : ''}
-                  onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
-                  disabled={!editable || loading}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  aria-label={`${it.name}の見込み日`}
-                />
+                {canEdit ? (
+                  <>
+                    <div
+                      className="w-full h-full flex items-center justify-center cursor-pointer"
+                      onClick={() => {
+                        const input = document.getElementById(inputId) as HTMLInputElement;
+                        if (input) {
+                          // showPicker()が使えない場合はclick()を使う
+                          if ('showPicker' in input && typeof input.showPicker === 'function') {
+                            try {
+                              input.showPicker();
+                            } catch (e) {
+                              input.click();
+                            }
+                          } else {
+                            input.click();
+                          }
+                        }
+                      }}
+                    >
+                      <span
+                        className="font-extrabold text-center"
+                        style={{
+                          fontSize: itemCount <= 3 ? '16px' : itemCount <= 5 ? '15px' : '14px',
+                          letterSpacing: '0.5px',
+                          color: hasValue ? '#000000' : '#cbd5e1',
+                          fontWeight: '800'
+                        }}
+                      >
+                        {displayText || 'クリック'}
+                      </span>
+                    </div>
+                    <input
+                      id={inputId}
+                      type="date"
+                      value={hasValue ? rawValue : ''}
+                      onChange={(e) => {
+                        handleEstimateChange(scheduleId, e.target.value);
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 pointer-events-none
+                                [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full
+                                [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0
+                                [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-100"
+                      style={{ pointerEvents: 'auto' }}
+                      title={hasValue ? `クリックして変更: ${displayText}` : 'クリックして日付を選択'}
+                    />
+                  </>
+                ) : (
+                  <span
+                    className="block text-center font-extrabold text-slate-800 py-1"
+                    style={{
+                      fontSize: itemCount <= 3 ? '16px' : itemCount <= 5 ? '15px' : '14px',
+                      letterSpacing: '0.5px',
+                      fontWeight: '800'
+                    }}
+                  >
+                    {displayText}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -316,10 +378,12 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
             return (
               <div
                 key={`${it.id ?? it.name}-delay-${i}`}
-                className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-[10px] sm:text-xs font-semibold`}
+                className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 font-bold`}
                 style={{
                   backgroundColor: delay && delay > 0 ? '#FEE2E2' : delay && delay < 0 ? '#D1FAE5' : '#F9FAFB',
-                  color: delayDisplay.color || '#6B7280'
+                  color: delayDisplay.color || '#6B7280',
+                  fontSize: itemCount <= 3 ? '13px' : itemCount <= 5 ? '12px' : '11px',
+                  letterSpacing: '0.3px'
                 }}
               >
                 <span className="block truncate">{delayDisplay.text}</span>
