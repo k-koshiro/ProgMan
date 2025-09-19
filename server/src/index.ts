@@ -9,6 +9,7 @@ import fs from 'fs';
 
 import { initDatabase } from './db/init.js';
 import { addBaseDateColumn } from './db/migrate.js';
+import { cleanupLegacyCategories } from './db/queries.js';
 import projectRoutes from './routes/projects.js';
 import scheduleRoutes from './routes/schedules.js';
 import versionRoutes from './routes/version.js';
@@ -29,6 +30,8 @@ const io = new Server(httpServer, {
     credentials: true
   }
 });
+
+app.set('io', io);
 
 const PORT = Number(process.env.PORT || 5001);
 
@@ -52,6 +55,7 @@ const startServer = async () => {
   try {
     await initDatabase();
     await addBaseDateColumn();
+    await cleanupLegacyCategories();
     
     httpServer.listen(PORT, '0.0.0.0', () => {
       console.log(`Server running on port ${PORT}`);

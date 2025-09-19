@@ -4,6 +4,20 @@ import { format, addDays, differenceInDays } from 'date-fns';
 import { initialCategories } from '../data/initialData.js';
 import { scheduleTemplates } from '../data/scheduleTemplate.js';
 
+const normalizeCategoryLabel = (value?: string | null): string | null => {
+  const trimmed = (value ?? '').toString().trim();
+  if (!trimmed) return null;
+  const replacements: Record<string, string> = {
+    'メイン': 'メインソフト',
+    'メインｿﾌﾄ': 'メインソフト',
+    'サブ': 'サブソフト',
+    'サブｿﾌﾄ': 'サブソフト',
+    'デバック': 'サブソフト',
+    'デバッグ': 'サブソフト'
+  };
+  return replacements[trimmed] ?? trimmed;
+};
+
 export const getAllProjects = (): Promise<Project[]> => {
   return new Promise((resolve, reject) => {
     db.all('SELECT * FROM projects ORDER BY created_at DESC', (err, rows) => {
@@ -157,7 +171,7 @@ export const replaceSchedulesFromExcel = (projectId: number, rows: ExcelSchedule
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const r of rows) {
-          const category = (r.category && String(r.category).trim()) || '未分類';
+          const normalizedCategory = normalizeCategoryLabel(r.category) ?? '未分類';
           const item = String(r.item || '').trim();
           if (!item) continue;
           const owner = r.owner ? String(r.owner).trim() : null;
@@ -165,7 +179,7 @@ export const replaceSchedulesFromExcel = (projectId: number, rows: ExcelSchedule
           const dur = r.duration != null && !Number.isNaN(r.duration) ? Math.max(0, Math.trunc(r.duration)) : null;
           const progress = r.progress != null && !Number.isNaN(r.progress) ? Math.min(100, Math.max(0, Number(r.progress))) : 0;
           stmt.run(
-            [projectId, category, item, owner, start, dur, null, progress, sortOrder++],
+            [projectId, normalizedCategory, item, owner, start, dur, null, progress, sortOrder++],
             (insErr) => {
               if (insErr) {
                 console.error('Insert error:', insErr, r);
@@ -213,6 +227,63 @@ export const getSchedulesByProject = (projectId: number): Promise<Schedule[]> =>
         }
       }
     );
+  });
+};
+
+type LegacyCategoryMapping = { to: string; from: string[]; table: string; column: string };
+
+const legacyMappings: LegacyCategoryMapping[] = [
+  { table: 'schedules', column: 'category', to: 'サブソフト', from: ['サブ', 'デバック', 'デバッグ'] },
+  { table: 'schedules', column: 'category', to: 'メインソフト', from: ['メイン'] },
+  { table: 'comments', column: 'owner', to: 'サブソフト', from: ['サブ', 'デバック', 'デバッグ'] },
+  { table: 'comments', column: 'owner', to: 'メインソフト', from: ['メイン'] }
+];
+
+export const cleanupLegacyCategories = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (legacyMappings.length === 0) {
+      resolve();
+      return;
+    }
+
+    db.serialize(() => {
+      db.run('BEGIN', beginErr => {
+        if (beginErr) {
+          reject(beginErr);
+          return;
+        }
+
+        let index = 0;
+        const runNext = () => {
+          if (index >= legacyMappings.length) {
+            db.run('COMMIT', commitErr => {
+              if (commitErr) reject(commitErr);
+              else resolve();
+            });
+            return;
+          }
+
+          const mapping = legacyMappings[index++];
+          if (!mapping.from.length) {
+            runNext();
+            return;
+          }
+
+          const placeholders = mapping.from.map(() => '?').join(',');
+          const sql = `UPDATE ${mapping.table} SET ${mapping.column} = ? WHERE ${mapping.column} IN (${placeholders})`;
+
+          db.run(sql, [mapping.to, ...mapping.from], (err) => {
+            if (err) {
+              db.run('ROLLBACK', () => reject(err));
+              return;
+            }
+            runNext();
+          });
+        };
+
+        runNext();
+      });
+    });
   });
 };
 

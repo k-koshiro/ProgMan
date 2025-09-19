@@ -36,6 +36,18 @@ const getProgressStyle = (status: ProgressStatus | undefined) => {
   return option || progressOptions[3]; // デフォルトは無作業
 };
 
+const DEFAULT_LEFT_SECTIONS = ['デザイン', 'メカ', 'ハード', 'ゲージ'];
+const DEFAULT_RIGHT_SECTIONS = ['企画', '画像', 'サブソフト', 'メインソフト', 'サウンド'];
+
+const normalizeSectionName = (name: string) => {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  if (trimmed === 'メイン') return 'メインソフト';
+  if (trimmed === 'サブ') return 'サブソフト';
+  if (trimmed === 'デバック' || trimmed === 'デバッグ') return 'サブソフト';
+  return trimmed;
+};
+
 function CommentsPage() {
   const { projectId, date: routeDate } = useParams<{ projectId: string; date?: string }>();
   const navigate = useNavigate();
@@ -62,8 +74,8 @@ function CommentsPage() {
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
-  const [fixedLeft, setFixedLeft] = useState<string[] | null>(null);
-  const [fixedRight, setFixedRight] = useState<string[] | null>(null);
+  const [fixedLeft, setFixedLeft] = useState<string[]>(DEFAULT_LEFT_SECTIONS);
+  const [fixedRight, setFixedRight] = useState<string[]>(DEFAULT_RIGHT_SECTIONS);
   const [OVERALL_KEY, setOverallKey] = useState<string>('__OVERALL__');
   const [overallLabel, setOverallLabel] = useState<string>('全体報告');
   const [newPageDate, setNewPageDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -100,8 +112,6 @@ function CommentsPage() {
       } catch (e) {
         console.warn('sections load failed', e);
       }
-      setFixedLeft(prev => prev ?? ['デザイン', 'メカ', 'ハード', 'ゲージ']);
-      setFixedRight(prev => prev ?? ['企画', '画像', 'サブソフト', 'メインソフト', 'サウンド']);
     };
     load();
     return () => {
@@ -169,27 +179,22 @@ function CommentsPage() {
   // カテゴリごとの担当者一覧を構築
   const categoryOwnersMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    // 削除すべき古いカテゴリのリスト
-    const excludedCategories = ['プロマネ', '検査技術', '企画システム', 'サブ'];
+    const excludedCategories = ['プロマネ', '検査技術', '企画システム'];
 
     schedules.forEach(schedule => {
-      let category = (schedule.category || '').trim();
-      if (!category || category === 'マイルストーン' || category === OVERALL_KEY || category === overallLabel) return;
-
-      // 古いカテゴリを除外
-      if (excludedCategories.includes(category)) return;
-
-      // 「メイン」を「メインソフト」にマッピング
-      if (category === 'メイン') {
-        category = 'メインソフト';
+      const normalizedCategory = normalizeSectionName(schedule.category || '');
+      if (!normalizedCategory || normalizedCategory === 'マイルストーン' || normalizedCategory === OVERALL_KEY || normalizedCategory === overallLabel) {
+        return;
       }
+
+      if (excludedCategories.includes(normalizedCategory)) return;
 
       const owner = (schedule.owner || '').trim();
-      if (!map.has(category)) {
-        map.set(category, new Set());
+      if (!map.has(normalizedCategory)) {
+        map.set(normalizedCategory, new Set());
       }
       if (owner) {
-        map.get(category)?.add(owner);
+        map.get(normalizedCategory)?.add(owner);
       }
     });
 
@@ -201,22 +206,26 @@ function CommentsPage() {
   }, [schedules, OVERALL_KEY, overallLabel]);
 
   const sectionLists = useMemo(() => {
-    const sanitize = (input: string[] | null | undefined) =>
-      (input ?? [])
-        .map(name => name.trim())
-        .filter(name => name && name !== OVERALL_KEY && name !== overallLabel);
+    const excludedCategories = ['プロマネ', '検査技術', '企画システム'];
+    const rightOrder = DEFAULT_RIGHT_SECTIONS;
+
+    const sanitize = (input: string[] | null | undefined) => {
+      const normalizedList: string[] = [];
+      (input ?? []).forEach(rawName => {
+        const name = normalizeSectionName(rawName);
+        if (!name || name === OVERALL_KEY || name === overallLabel) return;
+        if (excludedCategories.includes(name)) return;
+        if (!normalizedList.includes(name)) normalizedList.push(name);
+      });
+      return normalizedList;
+    };
 
     const baseLeft = sanitize(fixedLeft);
     let baseRight = sanitize(fixedRight);
 
-    // 右側に表示する順序を定義（上から企画、画像、サブソフト、メインソフト）
-    const rightOrder = ['企画', '画像', 'サブソフト', 'メインソフト'];
-
-    // baseRightが空の場合、デフォルト値を設定
     if (baseRight.length === 0) {
       baseRight = [...rightOrder];
     } else {
-      // 既存の項目に順序付けを適用
       const orderedItems: string[] = [];
       const remainingItems: string[] = [];
 
@@ -228,19 +237,17 @@ function CommentsPage() {
         }
       });
 
-      // rightOrderの順序で並べ替え
       const sortedOrderedItems = rightOrder.filter(item => orderedItems.includes(item));
       baseRight = [...sortedOrderedItems, ...remainingItems];
     }
 
     const ensureSection = (section: string) => {
-      const name = section.trim();
+      const name = normalizeSectionName(section);
       if (!name || name === OVERALL_KEY || name === overallLabel) return;
+      if (excludedCategories.includes(name)) return;
       if (baseLeft.includes(name) || baseRight.includes(name)) return;
 
-      // 右側の定義された順序に含まれているか確認
       if (rightOrder.includes(name)) {
-        // 正しい位置に挿入
         const index = rightOrder.indexOf(name);
         const insertPosition = baseRight.findIndex(item => rightOrder.indexOf(item) > index);
         if (insertPosition === -1) {
@@ -255,32 +262,19 @@ function CommentsPage() {
       }
     };
 
-    // 削除すべき古いカテゴリのリスト
-    const excludedCategories = ['プロマネ', '検査技術', '企画システム', 'サブ'];
-
     const scheduleCategories = Array.from(new Set(
       schedules
-        .map(s => {
-          let category = (s.category || '').trim();
-          // 「メイン」を「メインソフト」にマッピング
-          if (category === 'メイン') {
-            category = 'メインソフト';
-          }
-          return category;
-        })
+        .map(s => normalizeSectionName(s.category || ''))
         .filter(category => category && category !== 'マイルストーン' && !excludedCategories.includes(category))
     ));
 
     scheduleCategories.forEach(ensureSection);
 
-    // commentsByOwnerのキーも除外リストでフィルタリング
-    Object.keys(commentsByOwner)
-      .filter(owner => !excludedCategories.includes(owner))
-      .forEach(owner => {
-        // 「メイン」を「メインソフト」にマッピング
-        const mappedOwner = owner === 'メイン' ? 'メインソフト' : owner;
-        ensureSection(mappedOwner);
-      });
+    Object.keys(commentsByOwner).forEach(owner => {
+      const mappedOwner = normalizeSectionName(owner);
+      if (!mappedOwner || excludedCategories.includes(mappedOwner)) return;
+      ensureSection(mappedOwner);
+    });
 
     return { left: baseLeft, right: baseRight };
   }, [fixedLeft, fixedRight, schedules, commentsByOwner, OVERALL_KEY, overallLabel]);

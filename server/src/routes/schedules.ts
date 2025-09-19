@@ -12,7 +12,17 @@ router.get('/:projectId', async (req, res) => {
   try {
     const projectId = parseInt(req.params.projectId);
     const schedules = await getSchedulesByProject(projectId);
-    res.json(schedules);
+
+    // 除外すべき古いカテゴリのリスト
+    const excludedCategories = ['プロマネ', '検査技術', '企画システム'];
+
+    // 除外カテゴリをフィルタリング
+    const filteredSchedules = schedules.filter(schedule => {
+      const category = (schedule.category || '').trim();
+      return !excludedCategories.includes(category);
+    });
+
+    res.json(filteredSchedules);
   } catch (error) {
     console.error('Error fetching schedules:', error);
     res.status(500).json({ error: 'Failed to fetch schedules' });
