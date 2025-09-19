@@ -60,6 +60,7 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
   const [estimates, setEstimates] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [saveTimers, setSaveTimers] = useState<Record<number, ReturnType<typeof setTimeout>>>({});
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
   // スクリーンショットに基づく項目ごとの色設定
   const itemColorMap: Record<string, string> = {
@@ -125,8 +126,10 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
 
         const estimatesMap: Record<number, string> = {};
         estimatesData.forEach(est => {
-          if (est.estimate_date) {
-            estimatesMap[est.schedule_id] = est.estimate_date;
+          if (!est.estimate_date) return;
+          const normalized = est.estimate_date.slice(0, 10);
+          if (isoDatePattern.test(normalized)) {
+            estimatesMap[est.schedule_id] = normalized;
           }
         });
 
@@ -164,9 +167,23 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
   }, [projectId, saveTimers]);
 
   const handleEstimateChange = (scheduleId: number, value: string) => {
-    setEstimates(prev => ({ ...prev, [scheduleId]: value }));
+    const trimmed = value ? value.slice(0, 10) : '';
+    const isValid = isoDatePattern.test(trimmed);
+
+    setEstimates(prev => {
+      if (!trimmed) {
+        const next = { ...prev };
+        delete next[scheduleId];
+        return next;
+      }
+      if (!isValid) {
+        return prev;
+      }
+      return { ...prev, [scheduleId]: trimmed };
+    });
+
     if (editable) {
-      updateEstimate(scheduleId, value);
+      updateEstimate(scheduleId, isValid ? trimmed : '');
     }
   };
 
@@ -266,7 +283,7 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
               >
                 <input
                   type="date"
-                  value={estimates[scheduleId] || ''}
+                  value={(typeof estimates[scheduleId] === 'string' && isoDatePattern.test(estimates[scheduleId])) ? estimates[scheduleId] : ''}
                   onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
                   disabled={!editable || loading}
                   className="w-full text-[10px] sm:text-xs border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
