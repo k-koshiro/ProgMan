@@ -287,8 +287,12 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
                   value={hasValue ? estimates[scheduleId]! : ''}
                   onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
                   disabled={!editable || loading}
-                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#FFFBF0', color: hasValue ? '#1f2937' : 'transparent' }}
+                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center pr-8 pl-1 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
+                  style={{
+                    backgroundColor: '#FFFBF0',
+                    color: hasValue ? '#1f2937' : 'transparent',
+                    caretColor: '#1f2937'
+                  }}
                   onFocus={(e) => {
                     if (!hasValue) {
                       e.target.style.color = '#1f2937';
