@@ -283,26 +283,23 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
                 className={`${itemWidthClass} ${paddingClass} border-l border-gray-800`}
               >
                 <input
-                  type={hasValue ? 'date' : 'text'}
+                  type="date"
                   value={hasValue ? estimates[scheduleId]! : ''}
                   onChange={(e) => handleEstimateChange(scheduleId, e.target.value)}
                   disabled={!editable || loading}
+                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: '#FFFBF0', color: hasValue ? '#1f2937' : 'transparent' }}
                   onFocus={(e) => {
                     if (!hasValue) {
-                      e.target.type = 'date';
-                      if (typeof (e.target as HTMLInputElement).showPicker === 'function') {
-                        (e.target as HTMLInputElement).showPicker();
-                      }
+                      e.target.style.color = '#1f2937';
                     }
                   }}
                   onBlur={(e) => {
                     const currentValue = e.target.value ? e.target.value.slice(0, 10) : '';
                     if (!currentValue) {
-                      e.target.type = 'text';
+                      e.target.style.color = 'transparent';
                     }
                   }}
-                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: '#FFFBF0' }}
                 />
               </div>
             );
