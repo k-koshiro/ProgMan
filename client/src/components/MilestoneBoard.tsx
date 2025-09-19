@@ -261,7 +261,7 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
           {colored.map((it, i) => (
             <div
               key={`${it.id ?? it.name}-date-${i}`}
-              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-[11px] sm:text-xs truncate`}
+              className={`${itemWidthClass} text-center ${paddingClass} border-l border-gray-800 text-xs sm:text-sm font-semibold truncate`}
               style={{ backgroundColor: it.color, color: it.textColor }}
             >
               <span className="block truncate">{formatJP(it.date)}</span>
@@ -301,7 +301,7 @@ export default function MilestoneBoard({ items, projectId, editable = false }: P
                       e.target.type = 'text';
                     }
                   }}
-                  className="w-full text-[10px] sm:text-xs border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
+                  className="w-full text-xs sm:text-sm font-semibold border-0 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#FFFBF0' }}
                 />
               </div>
