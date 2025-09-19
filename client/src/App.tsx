@@ -12,7 +12,7 @@ function App() {
           <Route path="/" element={<Navigate to="/projects" replace />} />
           <Route path="/projects" element={<ProjectList />} />
           <Route path="/schedule/:projectId" element={<Schedule />} />
-          <Route path="/comments/:projectId" element={<CommentsPage />} />
+          <Route path="/comments/:projectId/:date?" element={<CommentsPage />} />
         </Routes>
         <VersionInfo />
       </div>
